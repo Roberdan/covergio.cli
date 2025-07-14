@@ -1,7 +1,7 @@
 {
-  "name": "gemini-cli-vscode-ide-companion",
-  "displayName": "Gemini CLI VSCode IDE Companion",
-  "description": "",
+  "name": "convergio-cli-vscode-ide-companion",
+  "displayName": "Convergio CLI VSCode IDE Companion",
+  "description": "VSCode IDE Companion for Convergio CLI - Universal AI Agent Orchestration Platform",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.101.0"
