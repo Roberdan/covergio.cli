@@ -1,15 +1,15 @@
 {
-  "name": "@google/gemini-cli",
-  "version": "0.1.12",
-  "description": "Gemini CLI",
+  "name": "@convergio/convergio-cli",
+  "version": "0.1.0",
+  "description": "Universal AI Agent Orchestration Platform CLI",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/google-gemini/gemini-cli.git"
+    "url": "git+https://github.com/convergio/convergio-cli.git"
   },
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "gemini": "dist/index.js"
+    "convergio": "dist/index.js"
   },
   "scripts": {
     "build": "node ../../scripts/build_package.js",
@@ -25,10 +25,10 @@
     "dist"
   ],
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.12"
+    "sandboxImageUri": "convergio/convergio-cli-sandbox:0.1.0"
   },
   "dependencies": {
-    "@google/gemini-cli-core": "file:../core",
+    "@convergio/convergio-cli-core": "file:../core",
     "@types/update-notifier": "^6.0.8",
     "command-exists": "^1.2.9",
     "diff": "^7.0.0",

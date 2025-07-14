@@ -1,0 +1,30 @@
+# Task ID: 18
+# Title: Enhanced CLI Interface for Multi-Agent Display
+# Status: pending
+# Dependencies: 17
+# Priority: medium
+# Description: Extend the existing React + Ink UI to display multi-agent conversations, agent status, and task progress in the terminal interface.
+# Details:
+1. Create new React components for agent visualization
+2. Implement color-coded agent status indicators
+3. Build real-time conversation threading display:
+```typescript
+const AgentConversation: React.FC<{
+  agents: AgentInstance[];
+  conversation: ConversationTurn[];
+}> = ({ agents, conversation }) => {
+  // Component implementation
+};
+```
+4. Add task progress bars with dependency visualization
+5. Implement agent expertise badges and specialization indicators
+6. Create clear delineation between user messages and agent responses
+7. Add ability to address specific agents directly
+8. Implement conversation branching for parallel agent work
+
+# Test Strategy:
+1. Unit tests for all new React components
+2. Snapshot testing for UI consistency
+3. Integration tests with simulated conversation data
+4. Manual testing in different terminal environments
+5. Accessibility testing for color contrast and readability

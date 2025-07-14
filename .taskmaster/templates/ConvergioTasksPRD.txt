@@ -1,0 +1,461 @@
+<context>
+# Overview
+Convergio CLI is a revolutionary Universal AI Agent Orchestration Platform that transforms the existing Gemini CLI into a multi-domain AI workforce. Instead of a single AI assistant, users can access specialized AI agents for ANY expertise area (business, legal, health, creative, personal, technical) through simple conversation. The platform automatically analyzes complex requests, decomposes them into manageable tasks, creates appropriate specialized agents, and orchestrates their collaboration to deliver comprehensive solutions.
+
+The core innovation is making enterprise-level AI expertise accessible to everyone through a familiar CLI interface, democratizing access to specialized knowledge and automating complex multi-domain workflows that traditionally require hiring multiple human experts.
+
+# Core Features
+## Universal Agent Factory
+- **Dynamic Agent Creation**: Automatically generates specialized AI agents for any domain based on user requests
+- **Personality Engine**: Creates realistic, domain-appropriate personalities that evolve based on user interactions
+- **Capability System**: Assigns relevant tools, expertise areas, and decision-making patterns to each agent
+- **Multi-Model Support**: Uses different AI models (GPT-4, Claude, Gemini) optimized for specific agent types
+
+## Task-Master-AI Integration
+- **Intelligent Request Analysis**: Automatically analyzes complex user requests to identify required domains and expertise
+- **Task Decomposition**: Breaks down complex projects into manageable, interdependent tasks
+- **Agent Specification**: Determines optimal agent types, expertise levels, and collaboration patterns
+- **Progress Monitoring**: Real-time tracking of task completion with bottleneck detection and adaptive re-planning
+
+## AutoGen Multi-Agent Orchestration
+- **Group Chat Management**: Orchestrates sophisticated multi-agent conversations using Microsoft AutoGen
+- **Collaboration Patterns**: Supports sequential, parallel, debate, consultation, and brainstorming modes
+- **Tool Coordination**: Manages shared tool usage and resource allocation across agents
+- **Consensus Building**: Facilitates decision-making and conflict resolution among agents
+
+## Real-Time Streaming Interface
+- **Live Agent Status**: Visual indicators showing which agents are active and their current tasks
+- **Multi-Agent Conversations**: Threaded conversation display showing agent-to-agent collaboration
+- **Progress Visualization**: Real-time task progress with dependency tracking
+- **Enhanced Commands**: Advanced slash commands for agent management (/agents, /domains, /orchestrate)
+
+## Universal Domain Support
+- **Business & Strategy**: Strategic planning, financial modeling, market analysis, operations optimization
+- **Legal & Compliance**: Contract review, regulatory compliance, risk assessment, intellectual property
+- **Healthcare & Wellness**: Medical consultation, nutrition planning, fitness coaching, mental health support
+- **Creative & Marketing**: Brand development, content creation, design conceptualization, campaign planning
+- **Technical & Development**: Software architecture, DevOps automation, security analysis, data engineering
+- **Personal & Lifestyle**: Life coaching, travel planning, education, relationship guidance, financial planning
+
+# User Experience
+## User Personas
+### Solo Developer/Entrepreneur
+- **Needs**: Access to business, legal, and technical expertise for startup development
+- **Pain Points**: Can't afford to hire specialists, needs quick expert guidance
+- **Value**: Get comprehensive startup support through specialized AI agents
+
+### Small Business Owner
+- **Needs**: Marketing strategy, operational efficiency, compliance guidance
+- **Pain Points**: Limited budget for consultants, time constraints
+- **Value**: Access to enterprise-level strategic planning and execution
+
+### Enterprise Professional
+- **Needs**: Complex project coordination, cross-functional expertise, decision support
+- **Pain Points**: Coordinating multiple stakeholders, knowledge silos
+- **Value**: Streamlined multi-domain project execution
+
+## Key User Flows
+### Multi-Domain Project Flow
+1. User describes complex project (e.g., "Launch a sustainable fashion startup")
+2. Task-Master-AI analyzes and identifies required domains (business, legal, creative, environmental)
+3. System creates specialized agent team (Business Strategist, Legal Expert, Brand Designer, Sustainability Consultant)
+4. Agents collaborate in real-time, sharing insights and building comprehensive solution
+5. User receives integrated deliverables with clear next steps
+
+### Single-Domain Expert Flow
+1. User requests specific expertise (e.g., "Help me understand GDPR compliance")
+2. System creates appropriate specialist (Privacy Lawyer with GDPR expertise)
+3. Agent provides expert guidance with relevant tools and resources
+4. Follow-up questions handled by same agent with maintained context
+
+### Iterative Consultation Flow
+1. User starts with general question about complex topic
+2. Initial agent provides overview and identifies areas needing deeper expertise
+3. System suggests additional specialists for comprehensive coverage
+4. User can accept suggestions or manually select additional agents
+5. Multi-agent collaboration provides thorough analysis from multiple perspectives
+
+## UI/UX Considerations
+### Terminal Interface Preservation
+- Maintain familiar CLI experience with React + Ink framework
+- Preserve all existing Gemini CLI functionality and commands
+- Minimal learning curve for existing users
+
+### Multi-Agent Visualization
+- Color-coded agent indicators showing status and activity
+- Real-time conversation threading to show agent collaboration
+- Task progress bars with dependency visualization
+- Agent expertise badges and specialization indicators
+
+### Conversation Management
+- Clear delineation between user messages and agent responses
+- Agent identification in conversation history
+- Ability to address specific agents directly
+- Conversation branching for parallel agent work streams
+</context>
+
+<PRD>
+# Technical Architecture
+
+## System Components
+### Frontend Layer (Preserved from Gemini CLI)
+- **React + Ink UI Framework**: Terminal-based interface with component architecture
+- **Command Processing**: Enhanced slash command system with multi-agent capabilities
+- **Streaming Display**: Real-time response rendering with agent-specific formatting
+- **Configuration Management**: User preferences, themes, and agent settings
+
+### Orchestration Layer (NEW - Task-Master-AI Integration)
+- **Universal Orchestrator**: Central coordination engine managing entire multi-agent workflow
+- **Request Analyzer**: NLP-powered analysis of user requests to identify domains and complexity
+- **Task Decomposer**: Breaks complex requests into manageable, interdependent tasks
+- **Agent Specifier**: Determines required agent types, expertise levels, and collaboration patterns
+- **Progress Monitor**: Real-time tracking with bottleneck detection and adaptive planning
+- **Context Engine**: Maintains conversation context and cross-agent shared memory
+
+### Execution Layer (NEW - AutoGen + Universal Agents)
+- **Agent Factory**: Dynamic creation of specialized agents with domain-specific capabilities
+- **AutoGen Engine**: Multi-agent conversation orchestration with group chat management
+- **Personality Engine**: Generates realistic agent personalities that evolve over time
+- **Memory System**: Agent-specific memory with learning and adaptation capabilities
+- **Collaboration Framework**: Supports multiple collaboration patterns and conflict resolution
+- **Tool Integration**: Bridges existing Gemini CLI tools with multi-agent workflows
+
+### Infrastructure Layer (Enhanced from Gemini CLI)
+- **Multi-Model Support**: Integration with OpenAI, Anthropic, and Google AI models
+- **Streaming Engine**: Real-time response streaming with agent multiplexing
+- **Security Framework**: Authentication, authorization, and data protection
+- **Performance Optimization**: Caching, load balancing, and resource management
+
+## Data Models
+### Core Entities
+```typescript
+interface UniversalAgent {
+  id: string;
+  name: string;
+  domain: string;
+  role: string;
+  personality: PersonalityProfile;
+  capabilities: Capability[];
+  memory: AgentMemory;
+  tools: Tool[];
+  collaborationRules: CollaborationRule[];
+}
+
+interface TaskPlan {
+  id: string;
+  originalRequest: string;
+  tasks: Task[];
+  dependencies: TaskDependency[];
+  agentAssignments: AgentAssignment[];
+  timeline: Timeline;
+  progress: Progress;
+}
+
+interface ConversationSession {
+  id: string;
+  userId: string;
+  activeAgents: AgentInstance[];
+  conversationHistory: ConversationTurn[];
+  projectState: ProjectState;
+  settings: SessionSettings;
+}
+```
+
+## APIs and Integrations
+### Internal APIs
+- **Universal Orchestrator API**: Main coordination interface
+- **Agent Factory API**: Dynamic agent creation and management
+- **Task-Master-AI API**: Task analysis and decomposition
+- **Memory Management API**: Agent memory and learning operations
+
+### External Integrations
+- **AI Model APIs**: OpenAI GPT-4, Anthropic Claude, Google Gemini
+- **Task-Master-AI Service**: External task management and planning service
+- **AutoGen Framework**: Microsoft's multi-agent conversation framework
+- **Vector Databases**: Pinecone/Weaviate for agent memory storage
+
+## Infrastructure Requirements
+### Development Environment
+- **Node.js 20+**: Runtime environment with ES Modules
+- **TypeScript 5+**: Strict mode for type safety
+- **Docker**: Containerization for consistent deployments
+- **Redis**: Session state and caching layer
+
+### Production Environment
+- **Kubernetes**: Container orchestration for scalability
+- **Load Balancers**: Traffic distribution across instances
+- **Monitoring Stack**: OpenTelemetry, Prometheus, Grafana
+- **Security Layer**: TLS 1.3, OAuth 2.0, API rate limiting
+
+# Development Roadmap
+
+## Phase 0: Foundation Setup (MVP Base)
+### Repository and Environment Setup
+- Fork Gemini CLI repository and rename to Convergio CLI
+- Update package.json, binary names, and basic project metadata
+- Establish development environment with Docker and Node.js 20+
+- Set up CI/CD pipeline with automated testing and deployment
+
+### Minimal Rebranding
+- Replace Gemini logos and ASCII art with Convergio branding
+- Update CLI command from 'gemini' to 'convergio'
+- Preserve all existing functionality and user experience
+- Update documentation and help text
+
+### Project Structure Creation
+- Create packages/core/src/universal/ directory structure
+- Set up shared types and utilities for multi-agent system
+- Establish basic orchestration framework interfaces
+- Create stub implementations for core components
+
+**Success Criteria**: CLI runs with Convergio branding, all existing Gemini functionality preserved
+
+## Phase 1: Core Multi-Agent Foundation (Usable MVP)
+### Universal Orchestrator Implementation
+- Build central coordination engine that routes requests to appropriate handlers
+- Implement basic request analysis to identify simple vs complex requests
+- Create workflow management for task execution
+- Add error handling and fallback to original Gemini behavior
+
+### Task-Master-AI Integration
+- Integrate external Task-Master-AI service for request analysis
+- Implement task decomposition for breaking down complex requests
+- Build agent specification system to determine required expertise
+- Add basic progress monitoring and status tracking
+
+### Basic Agent Factory
+- Create dynamic agent creation system for 3-4 core domains (business, technical, creative, personal)
+- Implement simple personality generation based on domain and role
+- Build capability assignment system with domain-specific tools
+- Add agent lifecycle management (creation, execution, cleanup)
+
+### AutoGen Integration Foundation
+- Integrate Microsoft AutoGen framework for multi-agent conversations
+- Build bridge between Universal Agents and AutoGen agents
+- Implement basic group chat management with turn-taking
+- Add tool coordination across multiple agents
+
+**Success Criteria**: Multi-agent workflows functional, 3-4 domains working, basic task decomposition operational
+
+## Phase 2: Enhanced User Experience (Production-Ready MVP)
+### Agent Status Display
+- Create real-time agent status indicators in CLI interface
+- Build agent activity visualization showing current tasks and progress
+- Add multi-agent conversation threading with clear speaker identification
+- Implement task progress visualization with dependency tracking
+
+### Advanced Command System
+- Implement /agents command to show active agents and their status
+- Add /domains command to list available domains and capabilities
+- Create /orchestrate command for manual agent selection and coordination
+- Build /taskmaster command to show task analysis and decomposition
+
+### Improved Conversation Flow
+- Enhance conversation display to show agent-to-agent collaboration
+- Add ability to address specific agents directly in conversation
+- Implement conversation branching for parallel agent work streams
+- Build conversation history with agent attribution and timestamps
+
+### Performance Optimization
+- Implement response caching for common agent interactions
+- Add request queuing and load balancing for high-traffic scenarios
+- Optimize memory usage for concurrent agent instances
+- Build monitoring and alerting for system performance
+
+**Success Criteria**: Rich UI for multi-agent workflows, smooth user experience, performance meets SLA targets
+
+## Phase 3: Advanced Intelligence (Enhanced Product)
+### Agent Learning and Evolution
+- Implement personality adaptation based on user interactions and feedback
+- Build learning system for agents to improve performance over time
+- Add user preference detection and agent customization
+- Create performance metrics and optimization feedback loops
+
+### Predictive Agent Suggestions
+- Build predictive engine to suggest relevant agents before user requests
+- Implement context analysis to anticipate user needs
+- Add proactive recommendations based on conversation history
+- Create smart agent assembly for common workflow patterns
+
+### Advanced Collaboration Patterns
+- Implement debate mode for agents to discuss different approaches
+- Add consultation mode for expert review and validation
+- Build brainstorming mode for creative collaboration
+- Create consensus-building mechanisms for decision-making
+
+### Cross-Domain Intelligence
+- Enable agents to share insights and learnings across domains
+- Build knowledge transfer mechanisms between related expertise areas
+- Implement meta-learning for improved agent coordination
+- Add domain bridging for seamless cross-functional collaboration
+
+**Success Criteria**: Agents learn and adapt, proactive suggestions, sophisticated collaboration patterns
+
+## Phase 4: Universal Platform (Enterprise-Ready)
+### Unlimited Domain Support
+- Expand domain coverage to 20+ specialized areas
+- Build custom domain creation framework for user-defined expertise
+- Implement domain templates and rapid agent specialization
+- Add automatic domain detection and agent recommendation
+
+### Enterprise Features
+- Build team collaboration features with shared agent workspaces
+- Implement role-based access control and permission management
+- Add audit logging and compliance reporting capabilities
+- Create enterprise security features and data governance
+
+### Plugin Architecture
+- Build extensible plugin system for custom agent types
+- Create marketplace for community-contributed agents and tools
+- Implement third-party integrations with business software
+- Add custom workflow templates and automation capabilities
+
+### Cloud Synchronization
+- Implement cross-device session synchronization
+- Build cloud-based agent memory and learning persistence
+- Add team collaboration with real-time multi-user support
+- Create backup and recovery systems for agent data
+
+**Success Criteria**: Enterprise-grade features, unlimited domain support, thriving ecosystem
+
+# Logical Dependency Chain
+
+## Foundation Dependencies (Must Build First)
+1. **Repository Setup and Rebranding** - Essential foundation before any development
+2. **Universal Orchestrator Framework** - Core coordination system that all other components depend on
+3. **Basic Agent Interface Definition** - Type definitions and contracts needed for all agent implementations
+4. **Task-Master-AI Integration** - Required for any intelligent task decomposition
+5. **Simple Agent Factory** - Must exist before any agents can be created
+
+## Progressive Enhancement Chain
+### Level 1: Basic Multi-Agent Capability
+6. **AutoGen Integration** - Enables multi-agent conversations
+7. **3-4 Core Domain Agents** - Provides immediate demonstrable value
+8. **Basic UI Enhancements** - Shows multi-agent activity to users
+9. **Streaming Coordination** - Ensures responsive user experience
+
+### Level 2: Production Readiness
+10. **Advanced Command System** - Improves user control and visibility
+11. **Error Handling and Fallbacks** - Ensures system reliability
+12. **Performance Optimization** - Handles real-world usage loads
+13. **Security Implementation** - Required for production deployment
+
+### Level 3: Intelligence and Learning
+14. **Agent Memory System** - Foundation for learning and adaptation
+15. **Personality Evolution** - Builds on memory system
+16. **Predictive Capabilities** - Requires historical data and learning
+17. **Advanced Collaboration** - Builds on basic multi-agent foundation
+
+### Level 4: Platform Features
+18. **Domain Expansion** - Scales successful patterns
+19. **Plugin Architecture** - Requires stable core platform
+20. **Enterprise Features** - Builds on proven functionality
+21. **Cloud Synchronization** - Final layer requiring all other systems
+
+## Critical Path for MVP
+The fastest path to a working, demonstrable product:
+1. Foundation Setup (Week 1-2)
+2. Universal Orchestrator + Task-Master Integration (Week 3-4)
+3. Basic Agent Factory + 2 Domain Agents (Week 5-6)
+4. AutoGen Integration + Basic UI (Week 7-8)
+5. Testing and Polish (Week 9-10)
+
+This approach gets to a working multi-agent system in 10 weeks while building on the proven Gemini CLI foundation.
+
+# Risks and Mitigations
+
+## Technical Challenges
+### Multi-Agent Coordination Complexity
+**Risk**: Agent conversations become chaotic or unproductive
+**Mitigation**: Implement structured conversation patterns with clear roles and turn-taking rules
+**Fallback**: Manual conversation flow control and agent intervention capabilities
+
+### Performance at Scale
+**Risk**: System becomes slow with multiple concurrent agents
+**Mitigation**: Implement agent pooling, response caching, and intelligent resource management
+**Fallback**: Graceful degradation to single-agent mode under high load
+
+### AI Model Integration Reliability
+**Risk**: External AI APIs fail or become unavailable
+**Mitigation**: Multi-model fallback strategy with 3+ providers and local model support
+**Fallback**: Degrade to single Gemini model with enhanced error messaging
+
+## MVP Scoping Challenges
+### Feature Scope Creep
+**Risk**: Adding too many features delays MVP delivery
+**Mitigation**: Strict feature prioritization focused on core multi-agent value proposition
+**Strategy**: Start with 2-3 domains maximum, expand after proven success
+
+### User Experience Complexity
+**Risk**: Multi-agent interface confuses users familiar with single AI
+**Mitigation**: Preserve familiar CLI experience with progressive disclosure of advanced features
+**Strategy**: Default to single-agent mode with opt-in multi-agent workflows
+
+### Integration Complexity
+**Risk**: Task-Master-AI and AutoGen integrations prove more complex than expected
+**Mitigation**: Build abstraction layers and fallback implementations
+**Strategy**: Start with simplified versions and enhance iteratively
+
+## Resource Constraints
+### Development Timeline Pressure
+**Risk**: Ambitious timeline leads to technical debt or incomplete features
+**Mitigation**: Prioritize working software over perfect implementation
+**Strategy**: Build incrementally with each phase adding real user value
+
+### External Dependency Risks
+**Risk**: Task-Master-AI or AutoGen changes break integration
+**Mitigation**: Version pinning and extensive integration testing
+**Strategy**: Build abstraction layers to minimize dependency surface area
+
+### Quality vs Speed Trade-offs
+**Risk**: Fast development leads to bugs or poor user experience
+**Mitigation**: Automated testing, continuous integration, and user feedback loops
+**Strategy**: Focus on core functionality reliability over feature breadth
+
+# Appendix
+
+## Research Findings
+### Competitive Analysis
+- **Existing Multi-Agent Systems**: Primarily developer-focused with complex setup requirements
+- **AI Assistant Market**: Dominated by single-agent solutions lacking domain specialization
+- **Enterprise Needs**: Strong demand for specialized expertise without hiring overhead
+- **User Preferences**: Preference for familiar interfaces with gradual feature discovery
+
+### Technical Validation
+- **Gemini CLI Architecture**: Excellent foundation with modular design and tool system
+- **AutoGen Capabilities**: Proven multi-agent framework with active development
+- **Task-Master-AI Integration**: Documented APIs and successful integration patterns
+- **Performance Benchmarks**: Target response times achievable with proper optimization
+
+## Technical Specifications
+### Performance Targets
+- **Agent Creation Time**: < 2 seconds for 95% of requests
+- **Multi-Agent Response**: < 5 seconds for complex coordinated responses
+- **Concurrent Users**: Support 1000+ simultaneous sessions
+- **System Availability**: 99.9% uptime excluding planned maintenance
+
+### Security Requirements
+- **Data Encryption**: AES-256 at rest, TLS 1.3 in transit
+- **Authentication**: OAuth 2.0 with PKCE for user authentication
+- **Authorization**: Role-based access control with granular permissions
+- **Privacy Compliance**: GDPR compliance with data minimization principles
+
+### Scalability Design
+- **Horizontal Scaling**: Kubernetes-based container orchestration
+- **Database Strategy**: Vector databases for agent memory, Redis for session state
+- **Monitoring**: OpenTelemetry with Prometheus metrics and Grafana dashboards
+- **Error Handling**: Circuit breaker patterns with graceful degradation
+
+## Development Guidelines
+### Code Quality Standards
+- **TypeScript Strict Mode**: All code must pass strict type checking
+- **Test Coverage**: 90% minimum coverage for core components
+- **Code Review**: Mandatory peer review for all changes
+- **Documentation**: TSDoc comments for all public APIs
+
+### Architecture Principles
+- **Separation of Concerns**: Clear boundaries between UI, orchestration, and execution layers
+- **Dependency Injection**: Loose coupling between components for testability
+- **Error Boundaries**: Graceful error handling at all system levels
+- **Performance First**: Optimize for response time and resource efficiency
+</PRD>

@@ -1,10 +1,10 @@
 {
-  "name": "@google/gemini-cli-core",
-  "version": "0.1.12",
-  "description": "Gemini CLI Core",
+  "name": "@convergio/convergio-cli-core",
+  "version": "0.1.0",
+  "description": "Universal AI Agent Orchestration Platform Core",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/google-gemini/gemini-cli.git"
+    "url": "git+https://github.com/convergio/convergio-cli.git"
   },
   "type": "module",
   "main": "dist/index.js",

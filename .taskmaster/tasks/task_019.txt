@@ -1,0 +1,32 @@
+# Task ID: 19
+# Title: Advanced Command System Implementation
+# Status: pending
+# Dependencies: 18
+# Priority: medium
+# Description: Implement enhanced slash commands for agent management, domain exploration, and orchestration control.
+# Details:
+1. Extend command processor to handle new multi-agent commands
+2. Implement /agents command to show active agents and status
+3. Add /domains command to list available domains and capabilities
+4. Create /orchestrate command for manual agent selection:
+```typescript
+function handleOrchestrateCommand(args: string[]): void {
+  const domains = args.filter(arg => arg.startsWith('domain:'))
+                     .map(arg => arg.replace('domain:', ''));
+  const roles = args.filter(arg => arg.startsWith('role:'))
+                   .map(arg => arg.replace('role:', ''));
+  
+  orchestrator.createCustomTeam(domains, roles);
+}
+```
+5. Build /taskmaster command to show task analysis and decomposition
+6. Add command auto-completion for new commands
+7. Implement help text and documentation for all commands
+8. Create command history and favorites functionality
+
+# Test Strategy:
+1. Unit tests for each command implementation
+2. Integration tests verifying command execution affects system state
+3. Test command parsing with various input formats
+4. Verify help text is comprehensive and accurate
+5. User acceptance testing with common command scenarios

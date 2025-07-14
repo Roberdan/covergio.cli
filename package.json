@@ -1,6 +1,8 @@
 {
-  "name": "@google/gemini-cli",
-  "version": "0.1.12",
+  "name": "@convergio/convergio-cli",
+  "version": "0.1.0",
+  "description": "Universal AI Agent Orchestration Platform - Transform any conversation into specialized expert assistance",
+  "keywords": ["ai", "agents", "cli", "orchestration", "multi-agent", "productivity", "automation"],
   "engines": {
     "node": ">=20.0.0"
   },
@@ -11,10 +13,10 @@
   "private": "true",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/google-gemini/gemini-cli.git"
+    "url": "git+https://github.com/convergio/convergio-cli.git"
   },
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.12"
+    "sandboxImageUri": "convergio/convergio-cli-sandbox:0.1.0"
   },
   "scripts": {
     "start": "node scripts/start.js",
@@ -49,7 +51,7 @@
     "clean": "node scripts/clean.js"
   },
   "bin": {
-    "gemini": "bundle/gemini.js"
+    "convergio": "bundle/convergio.js"
   },
   "files": [
     "bundle/",
