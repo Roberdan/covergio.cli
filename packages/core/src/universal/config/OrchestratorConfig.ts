@@ -171,7 +171,7 @@ export class OrchestratorConfigManager {
       },
     };
 
-    return this.deepMerge(defaults, userConfig);
+    return this.deepMerge(defaults as unknown as Record<string, unknown>, userConfig as unknown as Record<string, unknown>) as unknown as OrchestratorConfig;
   }
 
   private deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
@@ -193,7 +193,7 @@ export class OrchestratorConfigManager {
   }
 
   updateConfig(updates: Partial<OrchestratorConfig>): void {
-    this.config = this.deepMerge(this.config, updates);
+    this.config = this.deepMerge(this.config as unknown as Record<string, unknown>, updates as unknown as Record<string, unknown>) as unknown as OrchestratorConfig;
   }
 
   validate(): boolean {

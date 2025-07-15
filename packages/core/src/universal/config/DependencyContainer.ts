@@ -57,7 +57,7 @@ export class DependencyContainer {
 
     // Return existing singleton instance
     if (registration.singleton && registration.instance) {
-      return registration.instance;
+      return registration.instance as T;
     }
 
     this.resolving.add(token);
@@ -74,10 +74,10 @@ export class DependencyContainer {
       
       // Store singleton instance
       if (registration.singleton) {
-        registration.instance = instance;
+        registration.instance = instance as unknown;
       }
 
-      return instance;
+      return instance as T;
     } finally {
       this.resolving.delete(token);
     }

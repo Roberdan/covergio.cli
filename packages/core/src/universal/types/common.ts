@@ -15,10 +15,11 @@ export interface SessionContext {
 export interface AgentCapability {
   name: string;
   version: string;
-  description: string;
-  supportedOperations: string[];
-  requiredTools: string[];
-  performance: {
+  description?: string;
+  enabled?: boolean;
+  supportedOperations?: string[];
+  requiredTools?: string[];
+  performance?: {
     latency: number;
     throughput: number;
     accuracy: number;
@@ -27,14 +28,25 @@ export interface AgentCapability {
 
 export interface WorkflowStep {
   id: string;
-  agentId: string;
-  operation: string;
-  inputs: Record<string, unknown>;
+  name: string;
+  type: string;
+  description: string;
+  agentId?: string;
+  operation?: string;
+  inputs?: Record<string, unknown>;
   outputs?: Record<string, unknown>;
-  status: 'pending' | 'in-progress' | 'completed' | 'failed' | 'skipped';
+  status?: 'pending' | 'in-progress' | 'completed' | 'failed' | 'skipped';
   dependencies: string[];
-  estimatedDuration?: number;
+  parallel: boolean;
+  estimatedDuration: number;
   actualDuration?: number;
+  configuration: {
+    action?: string;
+    requiredCapabilities?: string[];
+    parameters?: Record<string, unknown>;
+    optional?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface WorkflowPlan {
@@ -44,6 +56,29 @@ export interface WorkflowPlan {
   steps: WorkflowStep[];
   estimatedTotalDuration: number;
   priority: 'low' | 'medium' | 'high' | 'critical';
+  metadata: Record<string, unknown>;
+}
+
+export interface StepExecutionResult {
+  stepId: string;
+  status: 'completed' | 'failed' | 'skipped';
+  output?: unknown;
+  error?: Error;
+  duration: number;
+  agentUsed?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface WorkflowExecution {
+  id: string;
+  plan: WorkflowPlan;
+  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  startTime: Date;
+  endTime?: Date;
+  currentStep: number;
+  completedSteps: StepExecutionResult[];
+  progress: number; // 0-100
+  error?: string;
   metadata: Record<string, unknown>;
 }
 
