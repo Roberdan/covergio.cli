@@ -9,8 +9,8 @@ import { CircuitBreaker, CircuitBreakerError, CircuitBreakerRegistry } from './C
 
 describe('CircuitBreaker', () => {
   let circuitBreaker: CircuitBreaker;
-  let mockOperation: vi.Mock;
-  let mockFallback: vi.Mock;
+  let mockOperation: ReturnType<typeof vi.fn>;
+  let mockFallback: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     circuitBreaker = new CircuitBreaker('test-service', {

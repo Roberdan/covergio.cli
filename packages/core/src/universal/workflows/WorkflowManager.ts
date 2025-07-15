@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IWorkflowManager } from '../interfaces/IWorkflowManager.js';
+import { IWorkflowManager, IWorkflowPlanner as LegacyIWorkflowPlanner, IWorkflowExecutor as LegacyIWorkflowExecutor, WorkflowExecutionContext, WorkflowExecutionResult } from '../interfaces/IWorkflowManager.js';
 import { IWorkflowPlanner, PlanningContext, PlanningConstraints } from './interfaces/IWorkflowPlanner.js';
 import { IWorkflowExecutor, ExecutionOptions } from './interfaces/IWorkflowExecutor.js';
 import { SmartWorkflowPlanner } from './planners/SmartWorkflowPlanner.js';
 import { WorkflowExecutor } from './executors/WorkflowExecutor.js';
-import { WorkflowPlan, WorkflowExecution, AgentInstance } from '../types/common.js';
+import { WorkflowPlan, WorkflowExecution, AgentInstance, WorkflowStep } from '../types/common.js';
 import { RequestAnalysis } from '../interfaces/IRequestHandler.js';
 import { OrchestrationRequest } from '../interfaces/IOrchestrator.js';
 import { ExecutionEvent } from './interfaces/IWorkflowExecutor.js';
@@ -23,9 +23,148 @@ export interface WorkflowManagerConfig {
   planningConstraints: PlanningConstraints;
 }
 
+/**
+ * Adapter class to bridge the original IWorkflowPlanner interface with the new implementation
+ */
+class WorkflowPlannerAdapter implements LegacyIWorkflowPlanner {
+  constructor(private newPlanner: IWorkflowPlanner) {}
+
+  async createPlan(request: OrchestrationRequest, analysis: RequestAnalysis, agents: AgentInstance[]): Promise<WorkflowPlan> {
+    const context: PlanningContext = {
+      request,
+      analysis,
+      availableAgents: agents,
+      constraints: {
+        maxSteps: 50,
+        maxDuration: 3600000, // 1 hour
+        allowedAgentTypes: agents.map(a => a.type),
+        requireApproval: false,
+      },
+    };
+    
+    const result = await this.newPlanner.createPlan(context);
+    return result.plan;
+  }
+
+  async validatePlan(plan: WorkflowPlan): Promise<boolean> {
+    // For legacy interface, we need to get available agents somehow
+    // This is a limitation of the original interface design
+    const mockAgents: AgentInstance[] = [];
+    const result = await this.newPlanner.validatePlan(plan, mockAgents);
+    return result.isValid;
+  }
+
+  async optimizePlan(plan: WorkflowPlan): Promise<WorkflowPlan> {
+    const constraints: PlanningConstraints = {
+      maxSteps: 50,
+      maxDuration: 3600000,
+      allowedAgentTypes: [],
+      requireApproval: false,
+    };
+    
+    return await this.newPlanner.optimizePlan(plan, constraints);
+  }
+}
+
+/**
+ * Adapter class to bridge the original IWorkflowExecutor interface with the new implementation
+ */
+class WorkflowExecutorAdapter implements LegacyIWorkflowExecutor {
+  constructor(private newExecutor: IWorkflowExecutor) {}
+
+  async execute(plan: WorkflowPlan, context: WorkflowExecutionContext): Promise<WorkflowExecutionResult> {
+    const executionOptions: ExecutionOptions = {
+      timeout: 3600000, // 1 hour default
+      enableCheckpoints: true,
+      enableRollback: true,
+      maxRetries: 3,
+    };
+
+    const workflowExecution = await this.newExecutor.execute(plan, executionOptions);
+    return this.convertToExecutionResult(workflowExecution, context);
+  }
+
+  async pause(workflowId: string): Promise<boolean> {
+    return await this.newExecutor.pause(workflowId);
+  }
+
+  async resume(workflowId: string): Promise<boolean> {
+    return await this.newExecutor.resume(workflowId);
+  }
+
+  async cancel(workflowId: string): Promise<boolean> {
+    return await this.newExecutor.cancel(workflowId);
+  }
+
+  async getStatus(workflowId: string): Promise<'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'> {
+    const status = await this.newExecutor.getExecutionStatus(workflowId);
+    return status?.status || 'failed';
+  }
+
+  private convertToExecutionResult(execution: WorkflowExecution, context: WorkflowExecutionContext): WorkflowExecutionResult {
+    const duration = execution.endTime ? 
+      execution.endTime.getTime() - execution.startTime.getTime() : 0;
+    
+    const agentsUsed = execution.completedSteps
+      .map(step => step.agentUsed)
+      .filter((agent): agent is string => agent !== undefined)
+      .filter((agent, index, array) => array.indexOf(agent) === index);
+
+    // Map execution status to legacy format
+    let legacyStatus: 'completed' | 'failed' | 'cancelled';
+    switch (execution.status) {
+      case 'completed':
+        legacyStatus = 'completed';
+        break;
+      case 'failed':
+        legacyStatus = 'failed';
+        break;
+      case 'cancelled':
+        legacyStatus = 'cancelled';
+        break;
+      default:
+        // For pending, running, or paused, we'll consider it as completed for legacy interface
+        legacyStatus = 'completed';
+        break;
+    }
+
+    return {
+      workflowId: execution.id,
+      status: legacyStatus,
+      result: execution.completedSteps.map(step => step.output).filter(output => output !== undefined),
+      error: execution.error ? new Error(execution.error) : undefined,
+      executedSteps: this.convertStepsToLegacyFormat(execution.completedSteps, execution.plan.steps),
+      metrics: {
+        totalDuration: duration,
+        stepsCompleted: execution.completedSteps.filter(s => s.status === 'completed').length,
+        stepsFailed: execution.completedSteps.filter(s => s.status === 'failed').length,
+        agentsUsed,
+      },
+    };
+  }
+
+  private convertStepsToLegacyFormat(completedSteps: import('../types/common.js').StepExecutionResult[], planSteps: WorkflowStep[]): WorkflowStep[] {
+    return completedSteps.map(step => {
+      const planStep = planSteps.find(ps => ps.id === step.stepId);
+      if (!planStep) {
+        throw new Error(`Plan step not found for executed step: ${step.stepId}`);
+      }
+      
+      return {
+        ...planStep,
+        status: step.status,
+        outputs: step.output ? { result: step.output } : undefined,
+        actualDuration: step.duration,
+      };
+    });
+  }
+}
+
 export class WorkflowManager implements IWorkflowManager {
   private planner: IWorkflowPlanner;
   private executor: IWorkflowExecutor;
+  private legacyPlannerAdapter: WorkflowPlannerAdapter;
+  private legacyExecutorAdapter: WorkflowExecutorAdapter;
   private config: WorkflowManagerConfig;
   private activeWorkflows = new Map<string, WorkflowExecution>();
   private workflowHistory: WorkflowExecution[] = [];
@@ -39,21 +178,23 @@ export class WorkflowManager implements IWorkflowManager {
     this.config = config;
     this.planner = planner || new SmartWorkflowPlanner();
     this.executor = executor || new WorkflowExecutor(eventCallback);
+    this.legacyPlannerAdapter = new WorkflowPlannerAdapter(this.planner);
+    this.legacyExecutorAdapter = new WorkflowExecutorAdapter(this.executor);
   }
 
-  getPlanner(): IWorkflowPlanner {
-    return this.planner;
+  getPlanner(): LegacyIWorkflowPlanner {
+    return this.legacyPlannerAdapter;
   }
 
-  getExecutor(): IWorkflowExecutor {
-    return this.executor;
+  getExecutor(): LegacyIWorkflowExecutor {
+    return this.legacyExecutorAdapter;
   }
 
   async createAndExecute(
     request: OrchestrationRequest,
     analysis: RequestAnalysis,
     availableAgents: AgentInstance[]
-  ): Promise<WorkflowExecution> {
+  ): Promise<WorkflowExecutionResult> {
     // Check concurrent workflow limit
     if (this.activeWorkflows.size >= this.config.maxConcurrentWorkflows) {
       throw new Error('Maximum concurrent workflows limit reached');
@@ -102,15 +243,33 @@ export class WorkflowManager implements IWorkflowManager {
     // Clean up completed workflows
     this.cleanupCompletedWorkflows();
 
-    return execution;
+    // Convert to legacy format
+    return this.convertToLegacyExecutionResult(execution, request, availableAgents);
   }
 
-  async getActiveWorkflows(): Promise<WorkflowExecution[]> {
-    return Array.from(this.activeWorkflows.values());
+  async getActiveWorkflows(): Promise<WorkflowExecutionContext[]> {
+    const activeExecutions = Array.from(this.activeWorkflows.values());
+    return activeExecutions.map(execution => this.convertToLegacyExecutionContext(execution));
   }
 
-  async getHistory(): Promise<WorkflowExecution[]> {
-    return [...this.workflowHistory];
+  async getHistory(limit?: number): Promise<WorkflowExecutionResult[]> {
+    const history = [...this.workflowHistory];
+    const limitedHistory = limit ? history.slice(-limit) : history;
+    return limitedHistory.map(execution => this.convertToLegacyExecutionResult(execution, 
+      {
+        id: '',
+        type: 'workflow-execution',
+        userInput: '',
+        sessionContext: {
+          sessionId: '',
+          workspaceRoot: '',
+          timestamp: new Date(),
+          metadata: {},
+        },
+        timestamp: new Date(),
+      } as OrchestrationRequest, 
+      []
+    ));
   }
 
   async pauseWorkflow(executionId: string): Promise<boolean> {
@@ -237,12 +396,12 @@ export class WorkflowManager implements IWorkflowManager {
   private cleanupCompletedWorkflows(): void {
     const completedWorkflows: string[] = [];
     
-    for (const [id, execution] of this.activeWorkflows.entries()) {
+    this.activeWorkflows.forEach((execution, id) => {
       if (['completed', 'failed', 'cancelled'].includes(execution.status)) {
         this.moveToHistory(execution);
         completedWorkflows.push(id);
       }
-    }
+    });
 
     completedWorkflows.forEach(id => this.activeWorkflows.delete(id));
   }
@@ -260,6 +419,103 @@ export class WorkflowManager implements IWorkflowManager {
     }, 0);
 
     return totalDuration / completedWorkflows.length;
+  }
+
+  /**
+   * Convert new WorkflowExecution to legacy WorkflowExecutionResult
+   */
+  private convertToLegacyExecutionResult(
+    execution: WorkflowExecution, 
+    request: OrchestrationRequest, 
+    agents: AgentInstance[]
+  ): WorkflowExecutionResult {
+    const duration = execution.endTime ? 
+      execution.endTime.getTime() - execution.startTime.getTime() : 0;
+    
+    const agentsUsed = execution.completedSteps
+      .map(step => step.agentUsed)
+      .filter((agent): agent is string => agent !== undefined)
+      .filter((agent, index, array) => array.indexOf(agent) === index);
+
+    // Map execution status to legacy format
+    let legacyStatus: 'completed' | 'failed' | 'cancelled';
+    switch (execution.status) {
+      case 'completed':
+        legacyStatus = 'completed';
+        break;
+      case 'failed':
+        legacyStatus = 'failed';
+        break;
+      case 'cancelled':
+        legacyStatus = 'cancelled';
+        break;
+      default:
+        // For pending, running, or paused, we'll consider it as completed for legacy interface
+        legacyStatus = 'completed';
+        break;
+    }
+
+    return {
+      workflowId: execution.id,
+      status: legacyStatus,
+      result: execution.completedSteps.map(step => step.output).filter(output => output !== undefined),
+      error: execution.error ? new Error(execution.error) : undefined,
+      executedSteps: this.convertStepsToLegacyFormat(execution.completedSteps, execution.plan.steps),
+      metrics: {
+        totalDuration: duration,
+        stepsCompleted: execution.completedSteps.filter(s => s.status === 'completed').length,
+        stepsFailed: execution.completedSteps.filter(s => s.status === 'failed').length,
+        agentsUsed,
+      },
+    };
+  }
+
+  /**
+   * Convert new WorkflowExecution to legacy WorkflowExecutionContext
+   */
+  private convertToLegacyExecutionContext(execution: WorkflowExecution): WorkflowExecutionContext {
+    const currentStep = execution.plan.steps[execution.currentStep];
+    const executedSteps = this.convertStepsToLegacyFormat(execution.completedSteps, execution.plan.steps);
+    
+    return {
+      workflowId: execution.id,
+      request: {
+        id: execution.id,
+        type: 'workflow-execution',
+        userInput: '',
+        sessionContext: {
+          sessionId: execution.id,
+          workspaceRoot: '',
+          timestamp: execution.startTime,
+          metadata: execution.metadata,
+        },
+        timestamp: execution.startTime,
+      } as OrchestrationRequest,
+      agents: [], // Legacy interface doesn't provide a way to get the original agents
+      currentStep,
+      executedSteps,
+      startTime: execution.startTime,
+      metadata: execution.metadata,
+    };
+  }
+
+  /**
+   * Convert new StepExecutionResult to legacy WorkflowStep format
+   */
+  private convertStepsToLegacyFormat(completedSteps: import('../types/common.js').StepExecutionResult[], planSteps: WorkflowStep[]): WorkflowStep[] {
+    return completedSteps.map(step => {
+      const planStep = planSteps.find(ps => ps.id === step.stepId);
+      if (!planStep) {
+        throw new Error(`Plan step not found for executed step: ${step.stepId}`);
+      }
+      
+      return {
+        ...planStep,
+        status: step.status,
+        outputs: step.output ? { result: step.output } : undefined,
+        actualDuration: step.duration,
+      };
+    });
   }
 }
 

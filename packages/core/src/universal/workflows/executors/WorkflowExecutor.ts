@@ -13,7 +13,7 @@ import {
   ExecutionCheckpoint,
   ExecutionStatus
 } from '../interfaces/IWorkflowExecutor.js';
-import { WorkflowPlan, WorkflowStep, WorkflowExecution, AgentInstance } from '../../types/common.js';
+import { WorkflowPlan, WorkflowStep, WorkflowExecution, WorkflowExecutionMetadata, AgentInstance } from '../../types/common.js';
 
 export class WorkflowExecutor implements IWorkflowExecutor {
   private activeExecutions = new Map<string, WorkflowExecution>();

@@ -14,6 +14,7 @@ import {
   PlanningConstraints
 } from '../interfaces/IWorkflowPlanner.js';
 import { WorkflowPlan, WorkflowStep, AgentInstance } from '../../types/common.js';
+import { RequestAnalysis } from '../../interfaces/IRequestHandler.js';
 
 export class SmartWorkflowPlanner implements IWorkflowPlanner {
   private stepTemplates: Map<string, StepTemplate> = new Map();

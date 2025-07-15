@@ -12,6 +12,7 @@ export interface OrchestrationEvent {
   data: Record<string, unknown>;
   correlationId?: string;
   metadata?: Record<string, unknown>;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export type EventHandler = (event: OrchestrationEvent) => Promise<void> | void;
@@ -21,6 +22,11 @@ export interface EventFilter {
   sources?: string[];
   correlationId?: string;
   metadata?: Record<string, unknown>;
+  priority?: ('low' | 'medium' | 'high' | 'critical')[];
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
 }
 
 export interface IEventPublisher {
@@ -35,21 +41,64 @@ export interface IEventPublisher {
   publishBatch(events: OrchestrationEvent[]): Promise<void>;
 }
 
+export interface EventSubscription {
+  id: string;
+  types: string[];
+  callback: EventHandler;
+  filter?: EventFilter;
+  createdAt: Date;
+  callCount: number;
+  lastCalled?: Date;
+}
+
 export interface IEventSubscriber {
   /**
    * Subscribe to events
    */
   subscribe(filter: EventFilter, handler: EventHandler): string;
+  subscribe(types: string[], callback: EventHandler, filter?: EventFilter): string;
 
   /**
    * Unsubscribe from events
    */
-  unsubscribe(subscriptionId: string): void;
+  unsubscribe(subscriptionId: string): boolean;
 
   /**
    * Get active subscriptions
    */
-  getSubscriptions(): Array<{ id: string; filter: EventFilter; handler: EventHandler }>;
+  getSubscriptions(): EventSubscription[];
+}
+
+export interface EventStore {
+  /**
+   * Store an event
+   */
+  store(event: OrchestrationEvent): Promise<void>;
+
+  /**
+   * Retrieve events
+   */
+  retrieve(limit?: number): Promise<OrchestrationEvent[]>;
+
+  /**
+   * Get event by ID
+   */
+  getById(eventId: string): Promise<OrchestrationEvent | null>;
+
+  /**
+   * Cleanup old events
+   */
+  cleanup(): Promise<number>;
+
+  /**
+   * Initialize the store
+   */
+  initialize?(): Promise<void>;
+
+  /**
+   * Shutdown the store
+   */
+  shutdown?(): Promise<void>;
 }
 
 export interface IEventStore {
@@ -74,16 +123,23 @@ export interface IEventStore {
   cleanup(olderThan: Date): Promise<number>;
 }
 
+export interface EventMetrics {
+  eventsPublished: number;
+  eventsStored: number;
+  activeSubscriptions: number;
+  averageProcessingTime: number;
+}
+
 export interface IEventSystem extends IEventPublisher, IEventSubscriber {
   /**
    * Get event store
    */
-  getStore(): IEventStore;
+  getStore(): EventStore;
 
   /**
    * Initialize the event system
    */
-  initialize(config: Record<string, unknown>): Promise<void>;
+  initialize(): Promise<void>;
 
   /**
    * Shutdown the event system
@@ -93,10 +149,25 @@ export interface IEventSystem extends IEventPublisher, IEventSubscriber {
   /**
    * Get system metrics
    */
-  getMetrics(): Promise<{
-    eventsPublished: number;
-    eventsStored: number;
-    activeSubscriptions: number;
-    averageProcessingTime: number;
-  }>;
+  getMetrics(): Promise<EventMetrics>;
+
+  /**
+   * Query events with filters
+   */
+  queryEvents(filter: EventFilter, limit?: number): Promise<OrchestrationEvent[]>;
+
+  /**
+   * Get events by type
+   */
+  getEventsByType(type: string, limit?: number): Promise<OrchestrationEvent[]>;
+
+  /**
+   * Get events by source
+   */
+  getEventsBySource(source: string, limit?: number): Promise<OrchestrationEvent[]>;
+
+  /**
+   * Get recent events
+   */
+  getRecentEvents(count?: number): Promise<OrchestrationEvent[]>;
 }

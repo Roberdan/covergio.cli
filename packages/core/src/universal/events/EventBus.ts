@@ -345,6 +345,7 @@ export class EventUtils {
           type: `${namespace}.${eventType}`,
           source: namespace,
           timestamp: new Date(),
+          data: data.data || {},
           ...data,
         };
         return eventBus.emit(event);

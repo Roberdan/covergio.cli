@@ -49,6 +49,7 @@ describe('EventBus', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventBus.emit(event);
@@ -66,6 +67,7 @@ describe('EventBus', () => {
         type: 'test.event2',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventBus.emit(event);
@@ -85,6 +87,7 @@ describe('EventBus', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       expect(callback).toHaveBeenCalledTimes(1);
@@ -98,6 +101,7 @@ describe('EventBus', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       expect(callback).toHaveBeenCalledTimes(1);
@@ -113,6 +117,7 @@ describe('EventBus', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       expect(callback).toHaveBeenCalledTimes(1);
@@ -123,6 +128,7 @@ describe('EventBus', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       expect(callback).toHaveBeenCalledTimes(1);
@@ -182,6 +188,7 @@ describe('EventBus', () => {
         type: 'test.priority',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       expect(executionOrder).toEqual([3, 2, 1]);
@@ -199,6 +206,7 @@ describe('EventBus', () => {
         type: 'test.equal',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       expect(callback1).toHaveBeenCalled();
@@ -216,6 +224,7 @@ describe('EventBus', () => {
         type: 'test.event1',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       const event2: OrchestrationEvent = {
@@ -223,6 +232,7 @@ describe('EventBus', () => {
         type: 'test.event2',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventBus.emit(event1);
@@ -241,6 +251,7 @@ describe('EventBus', () => {
         type: 'test.event1',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       const event2: OrchestrationEvent = {
@@ -248,6 +259,7 @@ describe('EventBus', () => {
         type: 'test.event12',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventBus.emit(event1);
@@ -268,6 +280,7 @@ describe('EventBus', () => {
         type: 'test.event1',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       expect(callback).not.toHaveBeenCalled();
@@ -287,6 +300,7 @@ describe('EventBus', () => {
         type: 'test.error',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       // Should not throw
@@ -305,6 +319,7 @@ describe('EventBus', () => {
         type: 'test.error',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       });
 
       const metrics = eventBus.getMetrics();
@@ -322,6 +337,7 @@ describe('EventBus', () => {
         type: 'test.metrics',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       }));
 
       for (const event of events) {
@@ -416,7 +432,7 @@ describe('EventUtils', () => {
 
   describe('typed emitter creation', () => {
     it('should create typed event emitter', async () => {
-      interface TestData {
+      interface TestData extends Record<string, unknown> {
         message: string;
         count: number;
       }
@@ -480,6 +496,7 @@ describe('EventUtils', () => {
         type: 'test.batch',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       }));
 
       // Add events one by one
@@ -506,6 +523,7 @@ describe('EventUtils', () => {
         type: 'test.timeout',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await batcher.add(event);
@@ -531,6 +549,7 @@ describe('EventUtils', () => {
         type: 'test.manual',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await batcher.add(event);

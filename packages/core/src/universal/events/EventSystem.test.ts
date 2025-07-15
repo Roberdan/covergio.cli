@@ -142,6 +142,7 @@ describe('EventSystem', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       // Wait for batch processing
@@ -163,6 +164,7 @@ describe('EventSystem', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventSystem.publish(event);
@@ -183,6 +185,7 @@ describe('EventSystem', () => {
         type: 'test.event1',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       const event2: OrchestrationEvent = {
@@ -190,6 +193,7 @@ describe('EventSystem', () => {
         type: 'test.event2',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventSystem.publishBatch([event1, event2]);
@@ -213,6 +217,7 @@ describe('EventSystem', () => {
         type: 'test.event',
         source: 'allowed-source',
         timestamp: new Date(),
+        data: {},
       };
 
       const blockedEvent: OrchestrationEvent = {
@@ -220,6 +225,7 @@ describe('EventSystem', () => {
         type: 'test.event',
         source: 'blocked-source',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventSystem.publishBatch([allowedEvent, blockedEvent]);
@@ -242,6 +248,7 @@ describe('EventSystem', () => {
         source: 'test',
         timestamp: new Date(),
         priority: 'high',
+        data: {},
       };
 
       const lowEvent: OrchestrationEvent = {
@@ -250,6 +257,7 @@ describe('EventSystem', () => {
         source: 'test',
         timestamp: new Date(),
         priority: 'low',
+        data: {},
       };
 
       await eventSystem.publishBatch([highEvent, lowEvent]);
@@ -271,6 +279,7 @@ describe('EventSystem', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       // Should not throw despite subscriber error
@@ -294,12 +303,14 @@ describe('EventSystem', () => {
           type: 'test.query',
           source: 'test',
           timestamp: new Date(),
+          data: {},
         },
         {
           id: 'event-2',
           type: 'other.event',
           source: 'test',
           timestamp: new Date(),
+          data: {},
         },
       ];
 
@@ -318,12 +329,14 @@ describe('EventSystem', () => {
           type: 'test.event',
           source: 'source-a',
           timestamp: new Date(),
+          data: {},
         },
         {
           id: 'event-2',
           type: 'test.event',
           source: 'source-b',
           timestamp: new Date(),
+          data: {},
         },
       ];
 
@@ -341,6 +354,7 @@ describe('EventSystem', () => {
         type: 'test.event',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       }));
 
       await eventSystem.publishBatch(events);
@@ -361,12 +375,14 @@ describe('EventSystem', () => {
           type: 'test.event',
           source: 'test',
           timestamp: past,
+          data: {},
         },
         {
           id: 'current-event',
           type: 'test.event',
           source: 'test',
           timestamp: now,
+          data: {},
         },
       ];
 
@@ -425,6 +441,7 @@ describe('EventSystem', () => {
         type: 'test.expire',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await shortRetentionSystem.publish(event);
@@ -453,6 +470,7 @@ describe('EventSystem', () => {
         type: 'test.metrics',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       }));
 
       await eventSystem.publishBatch(events);
@@ -482,6 +500,7 @@ describe('EventSystem', () => {
         type: 'test.storage',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       }));
 
       await eventSystem.publishBatch(events);
@@ -507,6 +526,7 @@ describe('EventSystem', () => {
         type: 'test.batch',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       }));
 
       await eventSystem.publishBatch(events);
@@ -524,6 +544,7 @@ describe('EventSystem', () => {
         type: 'test.timer',
         source: 'test',
         timestamp: new Date(),
+        data: {},
       };
 
       await eventSystem.publish(event);

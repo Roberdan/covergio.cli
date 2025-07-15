@@ -8,7 +8,7 @@
  * Base error class for all orchestrator errors
  */
 export abstract class OrchestratorError extends Error {
-  abstract readonly code: string;
+  abstract get code(): string;
   abstract readonly category: ErrorCategory;
   readonly timestamp: Date;
   readonly context?: Record<string, unknown>;
@@ -80,7 +80,7 @@ export interface StructuredError {
  * Configuration-related errors
  */
 export class ConfigurationError extends OrchestratorError {
-  readonly code = 'CONFIG_ERROR';
+  get code(): string { return 'CONFIG_ERROR'; }
   readonly category: ErrorCategory = 'configuration';
 
   constructor(message: string, context?: Record<string, unknown>) {
@@ -89,7 +89,7 @@ export class ConfigurationError extends OrchestratorError {
 }
 
 export class InvalidConfigurationError extends ConfigurationError {
-  readonly code = 'INVALID_CONFIG';
+  get code(): string { return 'INVALID_CONFIG'; }
 
   constructor(configKey: string, expectedType: string, actualValue: unknown) {
     super(
@@ -100,7 +100,7 @@ export class InvalidConfigurationError extends ConfigurationError {
 }
 
 export class MissingConfigurationError extends ConfigurationError {
-  readonly code = 'MISSING_CONFIG';
+  get code(): string { return 'MISSING_CONFIG'; }
 
   constructor(configKey: string) {
     super(`Missing required configuration: ${configKey}`, { configKey });
@@ -111,7 +111,7 @@ export class MissingConfigurationError extends ConfigurationError {
  * Routing-related errors
  */
 export class RoutingError extends OrchestratorError {
-  readonly code = 'ROUTING_ERROR';
+  get code(): string { return 'ROUTING_ERROR'; }
   readonly category: ErrorCategory = 'routing';
 
   constructor(message: string, context?: Record<string, unknown>, retryable = true) {
@@ -120,7 +120,7 @@ export class RoutingError extends OrchestratorError {
 }
 
 export class NoHandlerFoundError extends RoutingError {
-  readonly code = 'NO_HANDLER_FOUND';
+  get code(): string { return 'NO_HANDLER_FOUND'; }
 
   constructor(requestType: string, availableHandlers: string[]) {
     super(
@@ -132,7 +132,7 @@ export class NoHandlerFoundError extends RoutingError {
 }
 
 export class HandlerNotAvailableError extends RoutingError {
-  readonly code = 'HANDLER_NOT_AVAILABLE';
+  get code(): string { return 'HANDLER_NOT_AVAILABLE'; }
 
   constructor(handlerId: string, reason: string) {
     super(
@@ -144,7 +144,7 @@ export class HandlerNotAvailableError extends RoutingError {
 }
 
 export class RoutingCapacityExceededError extends RoutingError {
-  readonly code = 'ROUTING_CAPACITY_EXCEEDED';
+  get code(): string { return 'ROUTING_CAPACITY_EXCEEDED'; }
 
   constructor(currentLoad: number, maxCapacity: number) {
     super(
@@ -159,7 +159,7 @@ export class RoutingCapacityExceededError extends RoutingError {
  * Workflow-related errors
  */
 export class WorkflowError extends OrchestratorError {
-  readonly code = 'WORKFLOW_ERROR';
+  get code(): string { return 'WORKFLOW_ERROR'; }
   readonly category: ErrorCategory = 'workflow';
 
   constructor(message: string, context?: Record<string, unknown>, retryable = true) {
@@ -168,7 +168,7 @@ export class WorkflowError extends OrchestratorError {
 }
 
 export class WorkflowValidationError extends WorkflowError {
-  readonly code = 'WORKFLOW_VALIDATION_ERROR';
+  get code(): string { return 'WORKFLOW_VALIDATION_ERROR'; }
 
   constructor(workflowId: string, validationErrors: string[]) {
     super(
@@ -180,7 +180,7 @@ export class WorkflowValidationError extends WorkflowError {
 }
 
 export class WorkflowExecutionError extends WorkflowError {
-  readonly code = 'WORKFLOW_EXECUTION_ERROR';
+  get code(): string { return 'WORKFLOW_EXECUTION_ERROR'; }
 
   constructor(workflowId: string, stepId: string, originalError: Error) {
     super(
@@ -192,7 +192,7 @@ export class WorkflowExecutionError extends WorkflowError {
 }
 
 export class WorkflowTimeoutError extends WorkflowError {
-  readonly code = 'WORKFLOW_TIMEOUT';
+  get code(): string { return 'WORKFLOW_TIMEOUT'; }
 
   constructor(workflowId: string, timeoutMs: number) {
     super(
@@ -204,7 +204,7 @@ export class WorkflowTimeoutError extends WorkflowError {
 }
 
 export class WorkflowDependencyError extends WorkflowError {
-  readonly code = 'WORKFLOW_DEPENDENCY_ERROR';
+  get code(): string { return 'WORKFLOW_DEPENDENCY_ERROR'; }
 
   constructor(workflowId: string, missingDependencies: string[]) {
     super(
@@ -219,7 +219,7 @@ export class WorkflowDependencyError extends WorkflowError {
  * Agent-related errors
  */
 export class AgentError extends OrchestratorError {
-  readonly code = 'AGENT_ERROR';
+  get code(): string { return 'AGENT_ERROR'; }
   readonly category: ErrorCategory = 'agent';
 
   constructor(message: string, context?: Record<string, unknown>, retryable = true) {
@@ -228,7 +228,7 @@ export class AgentError extends OrchestratorError {
 }
 
 export class AgentNotFoundError extends AgentError {
-  readonly code = 'AGENT_NOT_FOUND';
+  get code(): string { return 'AGENT_NOT_FOUND'; }
 
   constructor(agentId: string, requiredCapabilities: string[]) {
     super(
@@ -240,7 +240,7 @@ export class AgentNotFoundError extends AgentError {
 }
 
 export class AgentOverloadError extends AgentError {
-  readonly code = 'AGENT_OVERLOAD';
+  get code(): string { return 'AGENT_OVERLOAD'; }
 
   constructor(agentId: string, currentLoad: number, maxCapacity: number) {
     super(
@@ -252,7 +252,7 @@ export class AgentOverloadError extends AgentError {
 }
 
 export class AgentCommunicationError extends AgentError {
-  readonly code = 'AGENT_COMMUNICATION_ERROR';
+  get code(): string { return 'AGENT_COMMUNICATION_ERROR'; }
 
   constructor(agentId: string, operation: string, originalError: Error) {
     super(
@@ -267,7 +267,7 @@ export class AgentCommunicationError extends AgentError {
  * Network-related errors
  */
 export class NetworkError extends OrchestratorError {
-  readonly code = 'NETWORK_ERROR';
+  get code(): string { return 'NETWORK_ERROR'; }
   readonly category: ErrorCategory = 'network';
 
   constructor(message: string, context?: Record<string, unknown>) {
@@ -276,7 +276,7 @@ export class NetworkError extends OrchestratorError {
 }
 
 export class ConnectionTimeoutError extends NetworkError {
-  readonly code = 'CONNECTION_TIMEOUT';
+  get code(): string { return 'CONNECTION_TIMEOUT'; }
 
   constructor(endpoint: string, timeoutMs: number) {
     super(
@@ -287,7 +287,7 @@ export class ConnectionTimeoutError extends NetworkError {
 }
 
 export class ServiceUnavailableError extends NetworkError {
-  readonly code = 'SERVICE_UNAVAILABLE';
+  get code(): string { return 'SERVICE_UNAVAILABLE'; }
 
   constructor(serviceName: string, statusCode?: number) {
     super(
@@ -301,7 +301,7 @@ export class ServiceUnavailableError extends NetworkError {
  * Validation-related errors
  */
 export class ValidationError extends OrchestratorError {
-  readonly code = 'VALIDATION_ERROR';
+  get code(): string { return 'VALIDATION_ERROR'; }
   readonly category: ErrorCategory = 'validation';
 
   constructor(message: string, context?: Record<string, unknown>) {
@@ -310,7 +310,7 @@ export class ValidationError extends OrchestratorError {
 }
 
 export class InvalidInputError extends ValidationError {
-  readonly code = 'INVALID_INPUT';
+  get code(): string { return 'INVALID_INPUT'; }
 
   constructor(fieldName: string, expectedFormat: string, actualValue: unknown) {
     super(
@@ -321,7 +321,7 @@ export class InvalidInputError extends ValidationError {
 }
 
 export class SchemaValidationError extends ValidationError {
-  readonly code = 'SCHEMA_VALIDATION_ERROR';
+  get code(): string { return 'SCHEMA_VALIDATION_ERROR'; }
 
   constructor(schemaName: string, validationErrors: string[]) {
     super(
@@ -335,7 +335,7 @@ export class SchemaValidationError extends ValidationError {
  * Resource-related errors
  */
 export class ResourceError extends OrchestratorError {
-  readonly code = 'RESOURCE_ERROR';
+  get code(): string { return 'RESOURCE_ERROR'; }
   readonly category: ErrorCategory = 'resource';
 
   constructor(message: string, context?: Record<string, unknown>) {
@@ -344,7 +344,7 @@ export class ResourceError extends OrchestratorError {
 }
 
 export class ResourceExhaustionError extends ResourceError {
-  readonly code = 'RESOURCE_EXHAUSTION';
+  get code(): string { return 'RESOURCE_EXHAUSTION'; }
 
   constructor(resourceType: string, currentUsage: number, maxCapacity: number) {
     super(
@@ -355,7 +355,7 @@ export class ResourceExhaustionError extends ResourceError {
 }
 
 export class ResourceLockError extends ResourceError {
-  readonly code = 'RESOURCE_LOCK_ERROR';
+  get code(): string { return 'RESOURCE_LOCK_ERROR'; }
 
   constructor(resourceId: string, lockHolder: string) {
     super(
@@ -369,7 +369,7 @@ export class ResourceLockError extends ResourceError {
  * Timeout-related errors
  */
 export class TimeoutError extends OrchestratorError {
-  readonly code = 'TIMEOUT_ERROR';
+  get code(): string { return 'TIMEOUT_ERROR'; }
   readonly category: ErrorCategory = 'timeout';
 
   constructor(operation: string, timeoutMs: number) {
@@ -386,7 +386,7 @@ export class TimeoutError extends OrchestratorError {
  * Security-related errors
  */
 export class SecurityError extends OrchestratorError {
-  readonly code = 'SECURITY_ERROR';
+  get code(): string { return 'SECURITY_ERROR'; }
   readonly category: ErrorCategory = 'security';
 
   constructor(message: string, context?: Record<string, unknown>) {
@@ -395,7 +395,7 @@ export class SecurityError extends OrchestratorError {
 }
 
 export class AuthenticationError extends SecurityError {
-  readonly code = 'AUTHENTICATION_ERROR';
+  get code(): string { return 'AUTHENTICATION_ERROR'; }
 
   constructor(reason: string) {
     super(`Authentication failed: ${reason}`, { reason });
@@ -403,7 +403,7 @@ export class AuthenticationError extends SecurityError {
 }
 
 export class AuthorizationError extends SecurityError {
-  readonly code = 'AUTHORIZATION_ERROR';
+  get code(): string { return 'AUTHORIZATION_ERROR'; }
 
   constructor(resource: string, requiredPermissions: string[]) {
     super(
@@ -417,7 +417,7 @@ export class AuthorizationError extends SecurityError {
  * System-related errors
  */
 export class SystemError extends OrchestratorError {
-  readonly code = 'SYSTEM_ERROR';
+  get code(): string { return 'SYSTEM_ERROR'; }
   readonly category: ErrorCategory = 'system';
 
   constructor(message: string, context?: Record<string, unknown>) {
@@ -426,7 +426,7 @@ export class SystemError extends OrchestratorError {
 }
 
 export class InternalError extends SystemError {
-  readonly code = 'INTERNAL_ERROR';
+  get code(): string { return 'INTERNAL_ERROR'; }
 
   constructor(component: string, originalError: Error) {
     super(
@@ -437,7 +437,7 @@ export class InternalError extends SystemError {
 }
 
 export class ServiceStartupError extends SystemError {
-  readonly code = 'SERVICE_STARTUP_ERROR';
+  get code(): string { return 'SERVICE_STARTUP_ERROR'; }
 
   constructor(serviceName: string, reason: string) {
     super(

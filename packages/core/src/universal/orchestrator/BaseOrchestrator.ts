@@ -54,7 +54,7 @@ export abstract class BaseOrchestrator implements IOrchestrator {
     }
 
     // Initialize subsystems
-    await this.eventSystem.initialize((config.events as Record<string, unknown>) || {});
+    await this.eventSystem.initialize();
     await this.initializeAgents();
     
     this.initialized = true;

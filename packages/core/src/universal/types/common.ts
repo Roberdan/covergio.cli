@@ -69,6 +69,12 @@ export interface StepExecutionResult {
   metadata?: Record<string, unknown>;
 }
 
+export interface WorkflowExecutionMetadata {
+  options: unknown;
+  retryCount?: number;
+  [key: string]: unknown;
+}
+
 export interface WorkflowExecution {
   id: string;
   plan: WorkflowPlan;
@@ -79,7 +85,7 @@ export interface WorkflowExecution {
   completedSteps: StepExecutionResult[];
   progress: number; // 0-100
   error?: string;
-  metadata: Record<string, unknown>;
+  metadata: WorkflowExecutionMetadata;
 }
 
 export interface AgentInstance {

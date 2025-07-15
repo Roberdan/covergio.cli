@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IEventSystem, OrchestrationEvent, EventSubscription, EventStore, EventMetrics } from '../interfaces/IEventSystem.js';
+import { IEventSystem, OrchestrationEvent, EventSubscription, EventStore, EventMetrics, EventFilter, EventHandler } from '../interfaces/IEventSystem.js';
 
 export interface EventSystemConfig {
   maxSubscribers: number;
@@ -15,7 +15,9 @@ export interface EventSystemConfig {
   maxEventSize: number;
 }
 
-export interface EventFilter {
+// EventFilter is now imported from IEventSystem
+// Keeping this interface for backward compatibility with existing code
+export interface EventSystemFilter {
   types?: string[];
   sources?: string[];
   priority?: ('low' | 'medium' | 'high' | 'critical')[];
@@ -144,18 +146,48 @@ export class EventSystem implements IEventSystem {
     this.updateProcessingTime(Date.now() - startTime);
   }
 
+  // Interface-compatible subscribe method
+  subscribe(filter: EventFilter, handler: EventHandler): string;
+  // Legacy subscribe method for backward compatibility
   subscribe(
     types: string[],
     callback: (event: OrchestrationEvent) => void | Promise<void>,
-    filter?: EventFilter
+    filter?: EventSystemFilter
+  ): string;
+  subscribe(
+    filterOrTypes: EventFilter | string[],
+    handlerOrCallback?: EventHandler | ((event: OrchestrationEvent) => void | Promise<void>),
+    filter?: EventSystemFilter
   ): string {
+    let types: string[];
+    let callback: EventHandler;
+    let eventFilter: EventSystemFilter | undefined;
+
+    if (Array.isArray(filterOrTypes)) {
+      // Legacy signature: subscribe(types, callback, filter)
+      types = filterOrTypes;
+      callback = handlerOrCallback as EventHandler;
+      eventFilter = filter;
+    } else {
+      // New signature: subscribe(filter, handler)
+      const inputFilter = filterOrTypes;
+      callback = handlerOrCallback as EventHandler;
+      types = inputFilter.types || [];
+      eventFilter = {
+        types: inputFilter.types,
+        sources: inputFilter.sources,
+        priority: inputFilter.priority,
+        dateRange: inputFilter.dateRange,
+      };
+    }
+
     const subscriptionId = `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const subscription: EventSubscription = {
       id: subscriptionId,
       types,
       callback,
-      filter,
+      filter: eventFilter,
       createdAt: new Date(),
       callCount: 0,
       lastCalled: undefined,
@@ -188,7 +220,7 @@ export class EventSystem implements IEventSystem {
     };
   }
 
-  async queryEvents(filter: EventFilter, limit = 100): Promise<OrchestrationEvent[]> {
+  async queryEvents(filter: EventSystemFilter, limit = 100): Promise<OrchestrationEvent[]> {
     const allEvents = await this.eventStore.retrieve(limit * 2); // Get more to filter
     return this.filterEvents(allEvents, filter).slice(0, limit);
   }
@@ -226,7 +258,7 @@ export class EventSystem implements IEventSystem {
   private async notifySubscribers(events: OrchestrationEvent[]): Promise<void> {
     const notificationPromises: Promise<void>[] = [];
 
-    for (const subscription of this.subscriptions.values()) {
+    for (const subscription of Array.from(this.subscriptions.values())) {
       const relevantEvents = events.filter(event => 
         this.isEventRelevant(event, subscription)
       );
@@ -293,7 +325,7 @@ export class EventSystem implements IEventSystem {
     return true;
   }
 
-  private filterEvents(events: OrchestrationEvent[], filter: EventFilter): OrchestrationEvent[] {
+  private filterEvents(events: OrchestrationEvent[], filter: EventSystemFilter): OrchestrationEvent[] {
     return events.filter(event => {
       // Type filter
       if (filter.types && !filter.types.includes(event.type)) {

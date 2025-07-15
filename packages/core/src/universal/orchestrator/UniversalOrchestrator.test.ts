@@ -98,6 +98,22 @@ class MockEventSystem implements IEventSystem {
     cleanup: vi.fn(() => Promise.resolve(0)),
   }));
   
+  async queryEvents() {
+    return [];
+  }
+  
+  async getEventsByType() {
+    return [];
+  }
+  
+  async getEventsBySource() {
+    return [];
+  }
+  
+  async getRecentEvents() {
+    return [];
+  }
+  
   async initialize() {}
   async shutdown() {}
   async getMetrics() {
