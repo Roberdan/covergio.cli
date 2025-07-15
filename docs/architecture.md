@@ -28,6 +28,16 @@ The Gemini CLI is primarily composed of two main packages, along with a suite of
     - **Purpose:** These are individual modules that extend the capabilities of the Gemini model, allowing it to interact with the local environment (e.g., file system, shell commands, web fetching).
     - **Interaction:** `packages/core` invokes these tools based on requests from the Gemini model.
 
+4.  **Universal Agent System (`packages/core/src/universal/agents/`):**
+    - **Purpose:** A sophisticated system for creating and managing specialized AI agents that handle domain-specific tasks. The Agent Factory dynamically generates agents based on requirements identified by Task-Master-AI integration.
+    - **Key components:**
+      - **AgentFactory:** Creates domain-specific agents with specialized capabilities
+      - **Agent Templates:** Pre-configured templates for common agent types
+      - **Personality System:** Generates agent personalities optimized for specific domains
+      - **Capability Registry:** Manages agent abilities and tool assignments
+      - **Lifecycle Management:** Handles agent initialization, execution, and cleanup
+      - **Domain Agents:** Specialized implementations (Customer Service, Data Analysis, Creative Assistant, Technical Support)
+
 ## Interaction Flow
 
 A typical interaction with the Gemini CLI follows this flow:

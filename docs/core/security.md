@@ -10,6 +10,8 @@ The security system provides:
 - **Key Management**: Hierarchical key management with master key protection
 - **Secure Transport**: TLS 1.3 enforcement for all HTTP communications
 - **Certificate Validation**: Comprehensive certificate chain validation and monitoring
+- **Authentication**: OAuth 2.0 with PKCE for secure user authentication
+- **Authorization**: Role-Based Access Control (RBAC) with fine-grained permissions
 - **Security Monitoring**: Audit logging and health checks
 
 ## Security Manager
@@ -178,6 +180,126 @@ if (expiration.isExpiringSoon) {
 }
 ```
 
+## Authentication System
+
+### OAuth 2.0 Implementation
+
+The authentication system implements OAuth 2.0 authorization code flow with PKCE:
+
+```typescript
+import { AuthenticationManager } from '@convergio/core/auth';
+
+const authManager = new AuthenticationManager({
+  provider: 'google',
+  clientId: 'your-client-id',
+  redirectUri: 'http://localhost:8080/callback',
+  scopes: ['openid', 'profile', 'email']
+});
+
+// Start authentication flow
+const authUrl = await authManager.getAuthorizationUrl();
+
+// Complete authentication with authorization code
+const tokens = await authManager.authenticate(authorizationCode);
+```
+
+### Secure Token Management
+
+- **JWT Validation**: Comprehensive token validation with JWKS support
+- **Refresh Tokens**: Automatic token refresh with secure storage
+- **Session Management**: Session lifecycle with configurable timeouts
+- **Multi-Device Support**: Concurrent session management
+
+### Supported Providers
+
+The system supports major OAuth 2.0 providers:
+- Google OAuth 2.0
+- Microsoft Azure AD
+- Auth0
+- Okta
+- GitHub OAuth
+
+## Authorization System
+
+### Role-Based Access Control (RBAC)
+
+The authorization system implements comprehensive RBAC with fine-grained permissions:
+
+```typescript
+import { AuthorizationService } from '@convergio/core/auth/authorization';
+
+const authService = new AuthorizationService({
+  enableAttributeBasedAccess: true,
+  enableRoleHierarchy: true,
+  auditEnabled: true
+});
+
+// Create permissions
+await authService.createPermission({
+  id: 'users:read',
+  name: 'Read Users',
+  resource: 'users',
+  action: 'read'
+});
+
+// Create roles with hierarchy
+await authService.createRole({
+  id: 'editor',
+  name: 'Editor',
+  permissions: ['users:write'],
+  inheritFrom: ['viewer'] // Inherits viewer permissions
+});
+
+// Assign roles to users
+await authService.assignRole('user123', 'editor', 'admin');
+```
+
+### Attribute-Based Access Control (ABAC)
+
+Support for conditional permissions based on context:
+
+```typescript
+// Permission with conditions
+const conditionalPermission = {
+  id: 'sensitive:read',
+  name: 'Read Sensitive Data',
+  resource: 'sensitive',
+  action: 'read',
+  conditions: [
+    {
+      attribute: 'department',
+      operator: 'equals',
+      value: 'security',
+      context: 'user'
+    }
+  ]
+};
+```
+
+### Authorization Middleware
+
+Express-style middleware for API endpoint protection:
+
+```typescript
+import { createAuthorizationMiddleware } from '@convergio/core/auth/authorization/middleware';
+
+const authMiddleware = createAuthorizationMiddleware(authService, {
+  extractResource: (req) => req.path.split('/')[1],
+  extractAction: (req) => req.method.toLowerCase(),
+  skipPaths: ['/health', '/public/*']
+});
+
+app.use(authMiddleware);
+```
+
+### Role Management Features
+
+- **Role Hierarchy**: Inheritance with principle of least privilege
+- **Dynamic Permissions**: Runtime permission changes
+- **Bulk Operations**: Efficient batch authorization checks
+- **Permission Matrix**: Analysis and visualization tools
+- **Circular Dependency Detection**: Prevents invalid role hierarchies
+
 ## Security Monitoring
 
 ### Audit Logging
@@ -191,6 +313,24 @@ interface SecurityAuditEntry {
   severity: 'info' | 'warning' | 'error' | 'critical';
   details: Record<string, any>;
   source: string;
+}
+```
+
+### Authorization Audit Logs
+
+Comprehensive logging for all authorization decisions:
+
+```typescript
+interface AuthorizationAuditLog {
+  id: string;
+  timestamp: string;
+  userId: string;
+  action: string;
+  resource: string;
+  result: 'granted' | 'denied';
+  reason?: string;
+  context: AuthorizationContext;
+  sessionId?: string;
 }
 ```
 
@@ -268,6 +408,22 @@ interface SecurityConfig {
     configDir?: string;
     autoBackup?: boolean;
   };
+  authentication?: {
+    provider?: 'google' | 'microsoft' | 'auth0' | 'okta' | 'github';
+    clientId?: string;
+    redirectUri?: string;
+    scopes?: string[];
+    sessionTimeout?: number; // minutes
+  };
+  authorization?: {
+    enableAttributeBasedAccess?: boolean;
+    enableRoleHierarchy?: boolean;
+    enablePolicyEngine?: boolean;
+    defaultDenyAll?: boolean;
+    auditEnabled?: boolean;
+    strictMode?: boolean;
+    maxRoleDepth?: number;
+  };
 }
 ```
 
@@ -290,6 +446,19 @@ export const DEFAULT_SECURITY_CONFIG = {
   },
   keyManagement: {
     autoBackup: true,
+  },
+  authentication: {
+    sessionTimeout: 480, // 8 hours
+    scopes: ['openid', 'profile', 'email']
+  },
+  authorization: {
+    enableAttributeBasedAccess: true,
+    enableRoleHierarchy: true,
+    enablePolicyEngine: true,
+    defaultDenyAll: false,
+    auditEnabled: true,
+    strictMode: false,
+    maxRoleDepth: 10
   }
 };
 ```
@@ -302,8 +471,25 @@ The security system implements comprehensive error handling:
 - **Key Management Errors**: Missing keys, access denied
 - **Network Errors**: TLS failures, certificate validation
 - **Configuration Errors**: Invalid settings, missing required fields
+- **Authentication Errors**: Invalid tokens, expired sessions, provider failures
+- **Authorization Errors**: Access denied, invalid permissions, role conflicts
+- **Validation Errors**: Invalid context, missing required fields
 
 All errors are logged to the audit system with appropriate severity levels.
+
+### Authorization Error Types
+
+```typescript
+enum AuthorizationErrorType {
+  PERMISSION_DENIED = 'permission_denied',
+  ROLE_NOT_FOUND = 'role_not_found',
+  PERMISSION_NOT_FOUND = 'permission_not_found',
+  INVALID_CONTEXT = 'invalid_context',
+  CIRCULAR_DEPENDENCY = 'circular_dependency',
+  MAX_DEPTH_EXCEEDED = 'max_depth_exceeded',
+  POLICY_EVALUATION_ERROR = 'policy_evaluation_error'
+}
+```
 
 ## Performance Considerations
 
@@ -324,6 +510,21 @@ All errors are logged to the audit system with appropriate severity levels.
 - Lazy loading of encryption keys
 - Efficient key storage format
 - Minimal memory footprint
+
+### Authentication Performance
+
+- JWT token validation caching
+- Session state optimized storage
+- Efficient PKCE parameter generation
+- Connection pooling for OAuth providers
+
+### Authorization Performance
+
+- Permission evaluation caching (5 minutes default)
+- Role hierarchy computation optimization
+- Bulk authorization operations
+- Lazy loading of role permissions
+- Efficient policy evaluation engine
 
 ## Security Compliance
 
