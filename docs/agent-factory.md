@@ -10,35 +10,49 @@ The Agent Factory provides a comprehensive system for creating and managing AI a
 
 1. **IAgent Interface** - Defines the contract for all agent implementations
 2. **IAgentFactory Interface** - Defines the factory contract for agent creation
-3. **AgentFactory Class** - Main implementation of the factory pattern
+3. **AgentFactory Class** - Main implementation of the factory pattern with integrated personality and capability systems
 4. **BaseAgent Class** - Abstract base class for agent implementations
 5. **Component Registry** - System for registering pluggable components
 6. **Dependency Injection Container** - Simple DI container for managing dependencies
+7. **PersonalityGenerator** - AI-powered personality generation system
+8. **CapabilityRegistry** - Comprehensive capability management and assignment
+9. **PersonalityCapabilityManager** - Coordination between personality and capability systems
 
 ### Class Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Agent Factory System                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   IAgentFactory │  │     IAgent      │  │   AgentMemory   │  │
-│  │                 │  │                 │  │                 │  │
-│  │ • createAgent() │  │ • execute()     │  │ • store()       │  │
-│  │ • registerType()│  │ • getHealth()   │  │ • retrieve()    │  │
-│  │ • validateConfig│  │ • initialize()  │  │ • update()      │  │
-│  │ • getTemplate() │  │ • terminate()   │  │ • delete()      │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   AgentFactory  │  │   BaseAgent     │  │ ComponentRegistry│  │
-│  │                 │  │                 │  │                 │  │
-│  │ • Statistics    │  │ • State Mgmt    │  │ • register()    │  │
-│  │ • Validation    │  │ • Memory        │  │ • get()         │  │
-│  │ • Templates     │  │ • Lifecycle     │  │ • has()         │  │
-│  │ • Events        │  │ • Serialization │  │ • clear()       │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                           Enhanced Agent Factory System                             │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────┐  │
+│  │   IAgentFactory │  │     IAgent      │  │   AgentMemory   │  │  IPersonality    │  │
+│  │                 │  │                 │  │                 │  │                  │  │
+│  │ • createAgent() │  │ • execute()     │  │ • store()       │  │ • getCompatible  │  │
+│  │ • registerType()│  │ • getHealth()   │  │ • retrieve()    │  │   Capabilities() │  │
+│  │ • validateConfig│  │ • initialize()  │  │ • update()      │  │ • generateBehav  │  │
+│  │ • getTemplate() │  │ • terminate()   │  │ • delete()      │  │   iorResponse()  │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └──────────────────┘  │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────┐  │
+│  │   AgentFactory  │  │   BaseAgent     │  │ ComponentRegistry│  │  ICapability     │  │
+│  │                 │  │                 │  │                 │  │                  │  │
+│  │ • Statistics    │  │ • State Mgmt    │  │ • register()    │  │ • getDependenc   │  │
+│  │ • Validation    │  │ • Memory        │  │ • get()         │  │   ies()          │  │
+│  │ • Templates     │  │ • Lifecycle     │  │ • has()         │  │ • execute()      │  │
+│  │ • Personality   │  │ • Serialization │  │ • clear()       │  │ • canCombine     │  │
+│  │ • Capabilities  │  │                 │  │                 │  │   With()         │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └──────────────────┘  │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────┐  │
+│  │PersonalityGen   │  │CapabilityReg    │  │PersonalityCap   │  │CompositionStrat  │  │
+│  │                 │  │                 │  │Manager          │  │                  │  │
+│  │ • generate      │  │ • searchCap     │  │                 │  │ • canHandle()    │  │
+│  │   Personality() │  │   abilities()   │  │ • generateOpt   │  │ • compose()      │  │
+│  │ • applyTemplate │  │ • assignCap     │  │   imal()        │  │ • getPriority()  │  │
+│  │ • checkCompat   │  │   abilities()   │  │ • checkCompat   │  │                  │  │
+│  │   ibility()     │  │ • validateCaps()│  │   ibility()     │  │                  │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Usage Examples
@@ -184,6 +198,59 @@ console.log('Factory Statistics:', {
 });
 ```
 
+### Personality and Capability Integration
+
+```typescript
+// Create agent with optimized personality-capability combination
+const agent = await factory.createAgentWithOptimization({
+  domain: 'technical',
+  role: 'developer',
+  capabilities: ['programming', 'data-analysis', 'problem-solving']
+});
+
+// Get personality and capability managers
+const personalityManager = factory.getPersonalityCapabilityManager();
+const capabilityRegistry = factory.getCapabilityRegistry();
+
+// Generate optimal personality for specific capabilities
+const personality = await personalityManager.generateOptimalPersonality(
+  ['creative-writing', 'communication'],
+  {
+    domain: 'creative',
+    role: 'content-creator',
+    requirements: ['engaging communication'],
+    constraints: ['formal tone'],
+    existingCapabilities: ['creative-writing'],
+    userPreferences: { style: 'professional' },
+    collaborationNeeds: ['team-coordination']
+  }
+);
+
+// Assign optimal capabilities for a personality
+const capabilities = await personalityManager.assignOptimalCapabilities(
+  personality.id,
+  {
+    personalityId: personality.id,
+    domain: 'creative',
+    role: 'content-creator',
+    requiredCapabilities: ['creative-writing'],
+    optionalCapabilities: ['design', 'marketing'],
+    constraints: ['time-efficient'],
+    performanceRequirements: { accuracy: 0.9, speed: 'medium' }
+  }
+);
+
+// Check compatibility between personality and capabilities
+const compatibility = await personalityManager.checkCompatibility(
+  personality.id,
+  ['technical-analysis', 'data-processing']
+);
+
+console.log('Compatibility Score:', compatibility.score);
+console.log('Compatible:', compatibility.compatible);
+console.log('Issues:', compatibility.issues);
+```
+
 ### Agent Lifecycle Management
 
 ```typescript
@@ -230,6 +297,29 @@ agent.on('state-changed', (data) => {
 
 agent.on('execution-completed', (data) => {
   console.log('Execution completed:', data.response);
+});
+
+// Listen to personality and capability events
+personalityManager.on('personality-generated', (data) => {
+  console.log('Personality generated:', data.personalityId);
+});
+
+personalityManager.on('capabilities-assigned', (data) => {
+  console.log('Capabilities assigned:', data.assignments);
+});
+
+personalityManager.on('compatibility-checked', (data) => {
+  console.log('Compatibility checked:', data.result);
+});
+
+// Listen to capability events
+const integratedCapability = new IntegratedCapability(capabilityRegistry.getCapability('programming')!);
+integratedCapability.on('capability-executed', (data) => {
+  console.log('Capability executed:', data.capabilityId, 'Success:', data.success);
+});
+
+integratedCapability.on('capability-execution-failed', (data) => {
+  console.error('Capability execution failed:', data.error);
 });
 ```
 
