@@ -8,6 +8,7 @@ Gemini CLI's core package (`packages/core`) is the backend portion of Gemini CLI
 - **[Memory Import Processor](./memport.md):** Documentation for the modular GEMINI.md import feature using @file.md syntax.
 - **[Agent Factory System](./agent-factory.md):** Comprehensive guide to the Universal Agent System for creating and managing specialized AI agents.
 - **[Security Implementation](./security.md):** Comprehensive security architecture including encryption, key management, secure transport, and certificate validation.
+- **[OAuth 2.0 Authentication](./authentication.md):** Complete OAuth 2.0 authentication system with PKCE, JWT validation, secure token storage, and session management.
 
 ## Role of the core
 
@@ -21,6 +22,7 @@ While the `packages/cli` portion of Gemini CLI provides the user interface, `pac
   - Executing the requested tools with the provided arguments.
   - Returning tool execution results to the Gemini model for further processing.
 - **Universal Agent System:** Creating and managing specialized AI agents for domain-specific tasks through the Agent Factory system, including personality generation, capability assignment, and lifecycle management.
+- **Authentication & Security:** Providing OAuth 2.0 authentication, secure token management, data encryption, and comprehensive security controls for enterprise deployments.
 - **Session and state management:** Keeping track of the conversation state, including history and any relevant context required for coherent interactions.
 - **Configuration:** Managing core-specific configurations, such as API key access, model selection, and tool settings.
 
