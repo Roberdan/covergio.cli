@@ -68,12 +68,14 @@ The Task-Master-AI integration provides intelligent request analysis, task decom
 - **Caching**: Smart caching with configurable TTL and size limits
 - **Metrics**: Comprehensive metrics tracking and performance monitoring
 
-### 4. Expertise Identification
+### 4. Agent Specification and Expertise Identification
 
-- **Skill Matching**: Identification of required skills and expertise
-- **Agent Specification**: Determination of appropriate agent types
-- **Capability Assessment**: Evaluation of required capabilities
-- **Confidence Scoring**: Confidence levels for expertise recommendations
+- **Agent Specification Schema**: Comprehensive schema for defining agent capabilities, personality traits, and tools
+- **Expertise Identification**: AI-powered identification of required skills and expertise for tasks
+- **Agent Matching Engine**: Sophisticated matching system to pair tasks with appropriate agents
+- **Capability Registry**: Centralized registry for managing agent specifications and capabilities
+- **Confidence Scoring**: Advanced scoring system with detailed breakdown and reasoning
+- **Fallback Mechanisms**: Robust fallback strategies when ideal expertise is unavailable
 
 ## Usage Examples
 
@@ -154,21 +156,73 @@ const executionOrder = decompositionSystem.getExecutionOrder(decompositionResult
 console.log('Execution order:', executionOrder);
 ```
 
-### Expertise Identification
+### Agent Specification and Expertise Identification
 
 ```typescript
-// Identify required expertise for a task
-const expertiseResult = await client.identifyExpertise(
-  'Deploy microservices to Kubernetes with CI/CD pipeline',
-  { 
-    userId: 'user123',
-    projectId: 'proj456'
-  }
-);
+import { 
+  ExpertiseIdentificationSystem,
+  AgentSpecificationRegistry,
+  AgentMatchingEngine
+} from './src/universal/integrations/taskmaster/expertise/index.js';
 
-// Access expertise recommendations
-const expertise = expertiseResult.response.recommendations?.expertiseNeeded;
-console.log('Required expertise:', expertise);
+// Initialize the expertise identification system
+const registry = new AgentSpecificationRegistry();
+const matchingEngine = new AgentMatchingEngine(registry, config);
+const expertiseSystem = new ExpertiseIdentificationSystem(client, registry, {
+  enableCaching: true,
+  useAI: true,
+  defaultWeights: {
+    capabilities: 0.4,
+    domain: 0.3,
+    experience: 0.15,
+    personality: 0.1,
+    tools: 0.05
+  }
+});
+
+// Identify required expertise for a complex task
+const expertiseResult = await expertiseSystem.identifyExpertise({
+  task: 'Deploy microservices to Kubernetes with CI/CD pipeline',
+  context: {
+    domain: 'devops',
+    complexity: 'complex',
+    timeLimit: 86400000, // 24 hours
+    teamSize: 3
+  },
+  options: {
+    maxAgents: 3,
+    minConfidence: 0.7,
+    optimizeFor: 'quality'
+  }
+});
+
+// Access detailed analysis and recommendations
+console.log('Required domains:', expertiseResult.analysis.domains);
+console.log('Agent specifications:', expertiseResult.specifications);
+console.log('Complexity assessment:', expertiseResult.analysis.complexity);
+console.log('Risk factors:', expertiseResult.analysis.riskFactors);
+
+// Get specific agent recommendations
+expertiseResult.specifications.forEach(spec => {
+  console.log(`${spec.role} (${spec.domain}) - ${Math.round(spec.confidence * 100)}% confidence`);
+  console.log('Capabilities:', spec.capabilities.map(cap => cap.name).join(', '));
+});
+
+// Find agents with specific capabilities
+const matches = await matchingEngine.findMatches({
+  requiredCapabilities: ['container-orchestration', 'ci-cd'],
+  domains: ['devops'],
+  minConfidence: 0.8,
+  maxMatches: 5
+});
+
+matches.forEach(match => {
+  console.log(`${match.specification.role}: ${Math.round(match.score * 100)}% match`);
+  console.log('Reasons:', match.matchReasons.join(', '));
+  if (match.concerns) {
+    console.log('Concerns:', match.concerns.join(', '));
+  }
+});
 ```
 
 ### Complexity Analysis
