@@ -113,3 +113,46 @@ export { PersonalityCapabilityManager } from './PersonalityCapabilityManager.js'
 // Agent Lifecycle Management
 export { AgentLifecycleManager } from './AgentLifecycleManager.js';
 export type { AgentLifecycleManagerConfig, AgentLifecycleManagerEvents } from './AgentLifecycleManager.js';
+
+// Domain-specific agent templates and implementations
+export { AgentTemplateSystem } from './templates/AgentTemplateSystem.js';
+export type { 
+  DomainAgentTemplate, 
+  CommunicationPattern, 
+  BehaviorRule, 
+  ValidationRule,
+  ConfigurableField,
+  TemplatePreset,
+  TemplateComposition,
+  TemplateValidationContext,
+  TemplateSystemEvents
+} from './templates/AgentTemplateSystem.js';
+
+export {
+  CustomerServiceAgent,
+  DataAnalysisAgent,
+  CreativeAssistantAgent,
+  TechnicalSupportAgent,
+  CustomerServiceTemplate,
+  DataAnalysisTemplate,
+  CreativeAssistantTemplate,
+  TechnicalSupportTemplate,
+  DOMAIN_AGENT_REGISTRY,
+  DOMAIN_TEMPLATE_REGISTRY,
+  DOMAIN_CATEGORIES,
+  DomainAgentUtils
+} from './templates/domains/index.js';
+
+export type {
+  CustomerServiceRequest,
+  CustomerServiceResponse,
+  DataAnalysisRequest,
+  DataAnalysisResponse,
+  CreativeAssistantRequest,
+  CreativeAssistantResponse,
+  TechnicalSupportRequest,
+  TechnicalSupportResponse,
+  DomainAgentConstructor,
+  AgentSummary,
+  ValidationResult as DomainValidationResult
+} from './templates/domains/index.js';

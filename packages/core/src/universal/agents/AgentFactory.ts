@@ -33,6 +33,13 @@ import {
   CompatibilityMatrix,
   CompositionStrategy
 } from './interfaces.js';
+import { AgentTemplateSystem } from './templates/AgentTemplateSystem.js';
+import { 
+  DOMAIN_AGENT_REGISTRY, 
+  DOMAIN_TEMPLATE_REGISTRY,
+  DomainAgentUtils,
+  DomainAgentConstructor
+} from './templates/domains/index.js';
 
 /**
  * Simple component registry implementation
@@ -121,6 +128,9 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
   private personalityCapabilityManager: PersonalityCapabilityManager;
   private agentLifecycleManager: AgentLifecycleManager;
   private compositionStrategies = new Map<string, CompositionStrategy>();
+  
+  // Domain-specific template system
+  private templateSystem: AgentTemplateSystem;
 
   constructor(config: AgentFactoryConfig = {}) {
     super();
@@ -162,9 +172,13 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
       enableHealthMonitoring: config.enableHealthMonitoring
     });
 
+    // Initialize template system
+    this.templateSystem = new AgentTemplateSystem();
+    
     this.initializeDefaultComponents();
     this.initializeCompositionStrategies();
     this.setupIntegratedEventListeners();
+    this.registerDomainAgents();
   }
 
   /**
@@ -190,10 +204,20 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
       // Get agent type key
       const agentType = this.getAgentType(config.domain, config.role);
       
-      // Get creator function
-      const creator = this.agentCreators.get(agentType);
-      if (!creator) {
-        throw new Error(`No creator found for agent type: ${agentType}`);
+      // Try to get domain-specific agent constructor first
+      const domainConstructor = DomainAgentUtils.getAgentConstructor(config.domain, config.role);
+      let creator: AgentCreator;
+      
+      if (domainConstructor) {
+        // Use domain-specific agent
+        creator = (config: AgentConfig) => Promise.resolve(new domainConstructor(config));
+      } else {
+        // Fall back to registered creators
+        const registeredCreator = this.agentCreators.get(agentType);
+        if (!registeredCreator) {
+          throw new Error(`No creator found for agent type: ${agentType}. Available domain agents: ${DomainAgentUtils.getAvailableDomains().join(', ')}`);
+        }
+        creator = registeredCreator;
       }
 
       // Prepare configuration with defaults
@@ -719,6 +743,59 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
    */
   getCapabilityRegistry(): CapabilityRegistry {
     return this.capabilityRegistry;
+  }
+
+  /**
+   * Get template system
+   */
+  getTemplateSystem(): AgentTemplateSystem {
+    return this.templateSystem;
+  }
+
+  /**
+   * Create agent from template
+   */
+  async createAgentFromTemplate(
+    domain: string, 
+    role: string, 
+    customization: Record<string, any> = {}
+  ): Promise<IAgent> {
+    // Get template
+    const template = DomainAgentUtils.getTemplate(domain, role);
+    if (!template) {
+      throw new Error(`Template not found for ${domain}:${role}`);
+    }
+
+    // Create configuration from template
+    const templateId = `${domain}:${role}`;
+    const config = this.templateSystem.createAgentConfig(templateId, customization);
+
+    // Create agent with template-based configuration
+    return this.createAgent(config);
+  }
+
+  /**
+   * Get available domain agent summaries
+   */
+  getAvailableDomainAgents(): Record<string, any> {
+    return DomainAgentUtils.getAllAgentSummaries();
+  }
+
+  /**
+   * Get recommended agent for task
+   */
+  getRecommendedAgentForTask(taskDescription: string): string | null {
+    return DomainAgentUtils.getRecommendedAgent(taskDescription);
+  }
+
+  /**
+   * Register domain agents with the factory
+   */
+  private registerDomainAgents(): void {
+    for (const [agentId, constructor] of DOMAIN_AGENT_REGISTRY.entries()) {
+      const creator: AgentCreator = (config: AgentConfig) => Promise.resolve(new constructor(config));
+      this.registerAgentType(agentId, creator);
+    }
   }
 }
 
