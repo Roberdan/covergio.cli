@@ -1,0 +1,96 @@
+# Task ID: 25
+# Title: Add MarkItDown Library as System Dependency
+# Status: pending
+# Dependencies: 23
+# Priority: high
+# Description: Add the Microsoft MarkItDown library as a system dependency in the project's package management file and verify the installation is working correctly.
+# Details:
+1. Determine the appropriate package management file for the project (package.json for Node.js or requirements.txt for Python).
+
+2. For Node.js environment (most likely based on existing tasks):
+   ```bash
+   npm install @microsoft/markitdown --save
+   ```
+   
+   Add to package.json dependencies section:
+   ```json
+   "dependencies": {
+     "@microsoft/markitdown": "^latest-version",
+     // other existing dependencies
+   }
+   ```
+
+3. For Python environment (if applicable):
+   ```bash
+   pip install markitdown
+   ```
+   
+   Add to requirements.txt:
+   ```
+   markitdown==latest-version
+   ```
+
+4. Follow any additional installation steps from the official repository: https://github.com/microsoft/markitdown
+
+5. Create a simple verification script to test the installation:
+   ```typescript
+   // verify-markitdown.ts
+   import { MarkdownParser } from '@microsoft/markitdown';
+   
+   async function verifyMarkItDown() {
+     try {
+       const parser = new MarkdownParser();
+       const testMarkdown = '# Test Heading\nThis is a test paragraph.';
+       const parsed = await parser.parse(testMarkdown);
+       
+       console.log('MarkItDown library successfully installed and working!');
+       console.log('Parsed result:', parsed);
+       return true;
+     } catch (error) {
+       console.error('Error verifying MarkItDown library:', error);
+       return false;
+     }
+   }
+   
+   verifyMarkItDown();
+   ```
+
+6. Document the dependency in the project's README.md file, including version information and link to the official repository.
+
+7. Update any relevant documentation about project dependencies to include MarkItDown.
+
+# Test Strategy:
+1. Run the verification script to confirm the library is correctly installed:
+   ```bash
+   ts-node verify-markitdown.ts
+   ```
+
+2. Verify the package appears in the dependency list:
+   ```bash
+   npm list | grep markitdown
+   ```
+
+3. Check that the package is correctly listed in package.json with the appropriate version.
+
+4. Create a simple test file with various Markdown elements and verify the library can parse it correctly:
+   ```typescript
+   import { MarkdownParser } from '@microsoft/markitdown';
+   import { strict as assert } from 'assert';
+   
+   async function testMarkItDown() {
+     const parser = new MarkdownParser();
+     const testMarkdown = '# Heading\n\nParagraph with **bold** and *italic* text.\n\n- List item 1\n- List item 2';
+     const parsed = await parser.parse(testMarkdown);
+     
+     // Assert expected structure based on MarkItDown's output format
+     assert(parsed.headings.length === 1, 'Should have one heading');
+     assert(parsed.paragraphs.length === 1, 'Should have one paragraph');
+     assert(parsed.lists.length === 1, 'Should have one list');
+     
+     console.log('All tests passed!');
+   }
+   
+   testMarkItDown().catch(console.error);
+   ```
+
+5. Verify the library can be imported in the existing MarkItDown agent implementation (Task #23) without errors.

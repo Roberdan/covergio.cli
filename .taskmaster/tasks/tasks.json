@@ -9,7 +9,7 @@
         "testStrategy": "1. Verify CLI binary name change from 'gemini' to 'convergio'\n2. Run existing test suite to ensure all functionality is preserved\n3. Manual verification of branding elements in CLI output\n4. Confirm CI/CD pipeline successfully builds and tests the application\n5. Test Docker development environment setup on multiple platforms",
         "priority": "high",
         "dependencies": [],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -22,7 +22,7 @@
         "dependencies": [
           13
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -30,7 +30,7 @@
             "description": "Design and implement the foundational architecture and interfaces for the Universal Orchestrator Framework",
             "dependencies": [],
             "details": "1. Define the core interfaces (IOrchestrator, IRequestHandler, IWorkflowManager, etc.)\n2. Design the component hierarchy and dependency injection structure\n3. Create abstract base classes for extensibility\n4. Implement configuration management for the orchestrator\n5. Document the architecture with UML diagrams\n6. Create unit tests for interface contracts\n7. Implement a simple proof-of-concept to validate the architecture",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -41,7 +41,7 @@
               1
             ],
             "details": "1. Implement request parsing and normalization\n2. Design the routing decision tree algorithm\n3. Create handler registry and discovery mechanism\n4. Implement priority-based routing rules\n5. Add capability negotiation between requests and handlers\n6. Develop metrics collection for routing decisions\n7. Create unit and integration tests for the routing system",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": ""
           },
           {
@@ -481,11 +481,217 @@
             "testStrategy": ""
           }
         ]
+      },
+      {
+        "id": 23,
+        "title": "MarkItDown Agent Implementation",
+        "description": "Implement a specialized MarkItDown agent that leverages the Microsoft MarkItDown library for advanced Markdown document analysis and manipulation, integrating it into the multi-agent system.",
+        "details": "1. Install the MarkItDown library as a dependency following the official repository instructions:\n```bash\nnpm install @microsoft/markitdown\n```\n\n2. Create a new agent definition for MarkItDown:\n```typescript\nconst markItDownAgentDefinition: AgentDefinition = {\n  domain: 'document-processing',\n  role: 'markdown-specialist',\n  capabilities: [\n    'markdown-parsing',\n    'document-analysis',\n    'content-extraction',\n    'structure-manipulation',\n    'format-conversion'\n  ],\n  personalityTraits: ['analytical', 'precise', 'helpful', 'technical'],\n  tools: [\n    {\n      name: 'parseMarkdown',\n      description: 'Parse markdown content into structured format',\n      parameters: {\n        content: 'string'\n      }\n    },\n    {\n      name: 'extractHeadings',\n      description: 'Extract all headings from markdown document',\n      parameters: {\n        content: 'string'\n      }\n    },\n    {\n      name: 'generateTableOfContents',\n      description: 'Create a table of contents from markdown document',\n      parameters: {\n        content: 'string',\n        maxDepth: 'number'\n      }\n    },\n    {\n      name: 'convertToHTML',\n      description: 'Convert markdown to HTML',\n      parameters: {\n        content: 'string'\n      }\n    }\n  ]\n};\n```\n\n3. Implement the MarkItDown agent class:\n```typescript\nimport * as markitdown from '@microsoft/markitdown';\n\nclass MarkItDownAgent implements AgentInstance {\n  id: string;\n  definition: AgentDefinition;\n  state: AgentState;\n  memory: AgentMemory;\n  \n  constructor(id: string, memory: AgentMemory) {\n    this.id = id;\n    this.definition = markItDownAgentDefinition;\n    this.state = { status: 'ready' };\n    this.memory = memory;\n  }\n  \n  async execute(input: string): Promise<AgentResponse> {\n    // Parse the input to determine which MarkItDown functionality to use\n    const command = this.parseCommand(input);\n    \n    try {\n      switch (command.action) {\n        case 'parseMarkdown':\n          const parsed = markitdown.parse(command.content);\n          return this.formatResponse(parsed);\n          \n        case 'extractHeadings':\n          const document = markitdown.parse(command.content);\n          const headings = document.filter(node => \n            node.type === 'heading'\n          );\n          return this.formatResponse(headings);\n          \n        case 'generateTableOfContents':\n          const doc = markitdown.parse(command.content);\n          const toc = markitdown.generateTableOfContents(doc, command.maxDepth || 3);\n          return this.formatResponse(toc);\n          \n        case 'convertToHTML':\n          const html = markitdown.renderHTML(command.content);\n          return this.formatResponse(html);\n          \n        default:\n          return {\n            type: 'text',\n            content: 'I can help with Markdown processing. Please specify an action like parseMarkdown, extractHeadings, generateTableOfContents, or convertToHTML.',\n            metadata: { agentId: this.id }\n          };\n      }\n    } catch (error) {\n      return {\n        type: 'error',\n        content: `Error processing markdown: ${error.message}`,\n        metadata: { agentId: this.id, error: error.toString() }\n      };\n    }\n  }\n  \n  private parseCommand(input: string): any {\n    // Implementation to parse user input into structured commands\n    // This would extract the action and parameters from natural language\n  }\n  \n  private formatResponse(data: any): AgentResponse {\n    return {\n      type: 'markdown',\n      content: JSON.stringify(data, null, 2),\n      metadata: { \n        agentId: this.id,\n        timestamp: new Date().toISOString()\n      }\n    };\n  }\n}\n```\n\n4. Register the MarkItDown agent with the AgentFactory:\n```typescript\n// In the AgentFactory implementation\nregisterAgent('markdown-specialist', (id: string, memory: AgentMemory) => {\n  return new MarkItDownAgent(id, memory);\n});\n```\n\n5. Update the Universal Orchestrator to recognize markdown-related tasks and route them to the MarkItDown agent:\n```typescript\n// In the request routing logic\nif (analysis.domains.includes('document-processing') && \n    input.toLowerCase().includes('markdown')) {\n  const markdownAgent = agentFactory.create('markdown-specialist');\n  workflow.addAgent(markdownAgent);\n}\n```\n\n6. Implement specialized memory handling for markdown documents:\n```typescript\n// Add document storage capabilities to the memory system\ninterface DocumentMemoryItem extends MemoryItem {\n  documentType: 'markdown' | 'html' | 'other';\n  documentStructure?: any;\n}\n```\n\n7. Create user-friendly command aliases in the CLI interface:\n```typescript\n// In the command processor\nregisterCommand('markdown', async (args) => {\n  const subcommand = args[0];\n  const content = args.slice(1).join(' ');\n  \n  return orchestrator.execute({\n    userInput: `Use MarkItDown to ${subcommand} the following content: ${content}`,\n    sessionContext: currentSession\n  });\n});\n```",
+        "testStrategy": "1. Unit test the MarkItDown agent implementation:\n   - Test each method of the MarkItDownAgent class with various markdown inputs\n   - Verify correct parsing of different markdown structures\n   - Test error handling with malformed markdown\n   - Ensure all advertised capabilities work as expected\n\n2. Integration tests with the agent factory:\n   - Verify the agent can be created dynamically\n   - Test that the agent receives the correct definition and tools\n   - Ensure the agent properly integrates with the memory system\n\n3. End-to-end testing with the orchestrator:\n   - Test natural language requests that should route to the MarkItDown agent\n   - Verify complex markdown processing workflows\n   - Test collaboration scenarios where MarkItDown agent works with other agents\n\n4. Performance testing:\n   - Benchmark processing time for large markdown documents\n   - Test memory usage during complex operations\n   - Verify the agent can handle concurrent requests\n\n5. CLI interface testing:\n   - Test all markdown-related commands\n   - Verify output formatting is correct and readable\n   - Test with various terminal sizes and environments\n\n6. Dependency verification:\n   - Ensure the MarkItDown library is correctly installed and accessible\n   - Test with different versions of the library to ensure compatibility\n   - Verify all required dependencies are properly loaded\n\n7. Documentation testing:\n   - Verify help text and examples for markdown commands\n   - Test that error messages are clear and actionable\n   - Ensure all capabilities are properly documented",
+        "status": "pending",
+        "dependencies": [
+          16,
+          20,
+          14
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up MarkItDown library integration",
+            "description": "Install the Microsoft MarkItDown library and set up the initial project dependencies",
+            "dependencies": [],
+            "details": "Install the MarkItDown library using npm as specified in the requirements. Verify the installation by creating a simple test script that imports the library. Document any version-specific considerations or compatibility issues that might arise during installation.",
+            "status": "pending",
+            "testStrategy": "Create a simple test script that imports the library and verifies basic functionality like parsing a simple markdown string."
+          },
+          {
+            "id": 2,
+            "title": "Implement MarkItDown agent class",
+            "description": "Create the MarkItDownAgent class that implements the AgentInstance interface and provides markdown processing capabilities",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement the MarkItDownAgent class as outlined in the requirements, ensuring it properly handles all the specified markdown operations (parseMarkdown, extractHeadings, generateTableOfContents, convertToHTML). Complete the parseCommand method to interpret user instructions and extract relevant parameters. Add error handling for all operations.",
+            "status": "pending",
+            "testStrategy": "Create unit tests for each markdown operation, testing with various markdown inputs including edge cases like empty documents, complex nested structures, and malformed markdown."
+          },
+          {
+            "id": 3,
+            "title": "Integrate with AgentFactory and Orchestrator",
+            "description": "Register the MarkItDown agent with the AgentFactory and update the Universal Orchestrator to route markdown tasks appropriately",
+            "dependencies": [
+              2
+            ],
+            "details": "Register the MarkItDown agent with the AgentFactory using the provided code snippet. Update the Universal Orchestrator's request routing logic to recognize markdown-related tasks and route them to the MarkItDown agent. Ensure proper integration with the existing agent communication protocols.",
+            "status": "pending",
+            "testStrategy": "Test the end-to-end flow by submitting markdown-related requests to the orchestrator and verifying they are correctly routed to the MarkItDown agent."
+          },
+          {
+            "id": 4,
+            "title": "Implement document memory handling",
+            "description": "Create specialized memory handling for markdown documents to store and retrieve processed markdown content",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement the DocumentMemoryItem interface as specified in the requirements. Extend the AgentMemory system to handle storage and retrieval of markdown documents and their processed structures. Ensure the memory system can efficiently store and query document metadata.",
+            "status": "pending",
+            "testStrategy": "Test storing various markdown documents in memory, retrieving them, and verifying that document structure and metadata are preserved correctly."
+          },
+          {
+            "id": 5,
+            "title": "Create CLI interface for markdown commands",
+            "description": "Implement user-friendly command aliases in the CLI interface for interacting with the MarkItDown agent",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create the CLI command processor for markdown operations as outlined in the requirements. Implement subcommands for each of the MarkItDown agent's capabilities. Ensure the commands provide helpful usage information and proper error messages. Document all available commands and their parameters.",
+            "status": "pending",
+            "testStrategy": "Test each CLI command with various inputs, including valid commands, edge cases, and error scenarios. Verify that the commands correctly interact with the MarkItDown agent and return appropriate responses."
+          }
+        ]
+      },
+      {
+        "id": 24,
+        "title": "ImageAltText Agent Implementation",
+        "description": "Implement a specialized ImageAltText agent that leverages the Microsoft MarkItDown library to generate descriptive alt-text for images in Markdown documents using LLM integration.",
+        "details": "1. Install the Microsoft MarkItDown library as a dependency:\n```bash\nnpm install @microsoft/markitdown\n```\n\n2. Create a new agent definition for ImageAltText:\n```typescript\nconst imageAltTextAgentDefinition: AgentDefinition = {\n  domain: 'document-processing',\n  role: 'image-accessibility-specialist',\n  capabilities: [\n    'image-analysis',\n    'alt-text-generation',\n    'markdown-parsing',\n    'accessibility-enhancement'\n  ],\n  personalityTraits: [\n    'helpful',\n    'detail-oriented',\n    'accessibility-focused'\n  ],\n  tools: [\n    {\n      name: 'markitdown',\n      description: 'Microsoft MarkItDown library for Markdown processing'\n    },\n    {\n      name: 'llm-integration',\n      description: 'Integration with Large Language Models for image description'\n    }\n  ]\n};\n```\n\n3. Implement the ImageAltText agent class:\n```typescript\nclass ImageAltTextAgent implements AgentInstance {\n  id: string;\n  definition: AgentDefinition;\n  state: AgentState;\n  memory: AgentMemory;\n  \n  constructor(id: string, memory: AgentMemory) {\n    this.id = id;\n    this.definition = imageAltTextAgentDefinition;\n    this.state = { status: 'ready' };\n    this.memory = memory;\n  }\n  \n  async execute(input: string): Promise<AgentResponse> {\n    try {\n      // Parse the markdown document\n      const markitdown = require('@microsoft/markitdown');\n      const document = await markitdown.parse(input);\n      \n      // Find all images without alt text or with placeholder alt text\n      const imagesToProcess = document.findAll('image').filter(img => \n        !img.altText || img.altText.trim() === '' || \n        img.altText === 'image' || img.altText === 'placeholder'\n      );\n      \n      // Process each image using LLM integration\n      for (const image of imagesToProcess) {\n        const altText = await this.generateAltText(image.url);\n        image.altText = altText;\n      }\n      \n      // Return the updated markdown\n      return {\n        type: 'success',\n        content: document.toString(),\n        metadata: {\n          imagesProcessed: imagesToProcess.length\n        }\n      };\n    } catch (error) {\n      return {\n        type: 'error',\n        content: `Error processing images: ${error.message}`,\n        metadata: { error: error.toString() }\n      };\n    }\n  }\n  \n  private async generateAltText(imageUrl: string): Promise<string> {\n    // Use MarkItDown's LLM integration for image description\n    const markitdown = require('@microsoft/markitdown');\n    const llmConfig = {\n      provider: process.env.LLM_PROVIDER,\n      apiKey: process.env.LLM_API_KEY,\n      model: process.env.LLM_MODEL\n    };\n    \n    // Generate descriptive alt text using the configured LLM\n    const description = await markitdown.generateImageDescription(imageUrl, llmConfig);\n    \n    // Store in agent memory for future reference\n    await this.memory.store({\n      type: 'image-description',\n      content: description,\n      metadata: {\n        imageUrl,\n        timestamp: new Date().toISOString()\n      }\n    });\n    \n    return description;\n  }\n}\n```\n\n4. Register the agent with the AgentFactory:\n```typescript\nagentFactory.registerAgentType('image-alt-text', (id: string, memory: AgentMemory) => {\n  return new ImageAltTextAgent(id, memory);\n});\n```\n\n5. Update the orchestration system to recognize image-related tasks and delegate to the ImageAltText agent:\n```typescript\n// In the orchestration logic\nif (request.containsImages && (!request.imagesHaveAltText || request.needsAccessibilityEnhancement)) {\n  const imageAltTextAgent = await agentFactory.createAgent('image-alt-text');\n  const result = await imageAltTextAgent.execute(request.content);\n  // Process result and potentially pass to other agents in the workflow\n}\n```\n\n6. Implement configuration options for the ImageAltText agent:\n```typescript\ninterface ImageAltTextConfig {\n  defaultLanguage: string;\n  detailLevel: 'basic' | 'detailed' | 'comprehensive';\n  maxDescriptionLength: number;\n  includeImageContext: boolean;\n}\n\n// Default configuration\nconst defaultConfig: ImageAltTextConfig = {\n  defaultLanguage: 'en',\n  detailLevel: 'detailed',\n  maxDescriptionLength: 150,\n  includeImageContext: true\n};\n```",
+        "testStrategy": "1. Unit test the ImageAltText agent implementation:\n   - Test parsing of markdown documents with various image formats\n   - Verify detection of images without alt text\n   - Test generation of appropriate alt text descriptions\n   - Verify handling of different image types (JPG, PNG, SVG, etc.)\n   - Test error handling for invalid or inaccessible images\n\n2. Integration tests with the MarkItDown library:\n   - Verify correct installation and initialization of the library\n   - Test the LLM integration for image description generation\n   - Benchmark performance with different LLM providers\n   - Verify handling of rate limits and API errors\n\n3. End-to-end testing:\n   - Process sample markdown documents with multiple images\n   - Verify alt text is generated and inserted correctly\n   - Check that original document structure is preserved\n   - Validate accessibility improvements with automated tools\n\n4. Quality assessment of generated alt text:\n   - Manual review of descriptions for accuracy and helpfulness\n   - Test with screen readers to verify accessibility improvements\n   - Compare descriptions across different LLM models\n   - Verify appropriate length and detail level of descriptions\n\n5. Performance and resource testing:\n   - Measure processing time for documents with many images\n   - Monitor memory usage during batch processing\n   - Test concurrent processing of multiple documents\n   - Verify proper cleanup of resources after processing",
+        "status": "pending",
+        "dependencies": [
+          16,
+          20,
+          23
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up MarkItDown library integration",
+            "description": "Install the Microsoft MarkItDown library and create the necessary configuration for LLM integration",
+            "dependencies": [],
+            "details": "Install the Microsoft MarkItDown library using npm. Create environment variables for LLM configuration (LLM_PROVIDER, LLM_API_KEY, LLM_MODEL). Set up the basic configuration interface for the ImageAltText agent with default settings for language, detail level, description length, and context inclusion.",
+            "status": "pending",
+            "testStrategy": "Verify successful installation of the library. Test that environment variables are properly loaded. Ensure the configuration interface works with default values."
+          },
+          {
+            "id": 2,
+            "title": "Implement the ImageAltText agent class",
+            "description": "Create the core ImageAltText agent class with constructor and basic structure",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement the ImageAltTextAgent class that implements the AgentInstance interface. Include the constructor that initializes the agent with an ID, definition, state, and memory. Set up the basic structure for the execute method that will process markdown documents.",
+            "status": "pending",
+            "testStrategy": "Create unit tests to verify the agent initializes correctly with the proper definition and state. Test that the agent implements all required interface methods."
+          },
+          {
+            "id": 3,
+            "title": "Develop image processing and alt text generation functionality",
+            "description": "Implement the core functionality to parse markdown, identify images without proper alt text, and generate descriptive alt text",
+            "dependencies": [
+              2
+            ],
+            "details": "Complete the execute method to parse markdown documents using MarkItDown. Implement logic to identify images without alt text or with placeholder text. Create the generateAltText method that uses LLM integration to create descriptive alt text for images. Implement memory storage for generated descriptions.",
+            "status": "pending",
+            "testStrategy": "Test with sample markdown documents containing images with and without alt text. Verify the agent correctly identifies images needing processing. Test the LLM integration with mock responses."
+          },
+          {
+            "id": 4,
+            "title": "Register the agent with AgentFactory",
+            "description": "Add the ImageAltText agent to the agent factory system for dynamic instantiation",
+            "dependencies": [
+              3
+            ],
+            "details": "Register the ImageAltText agent type with the AgentFactory using the 'image-alt-text' identifier. Ensure the factory can properly instantiate the agent with the correct parameters. Update any necessary type definitions or interfaces in the factory system.",
+            "status": "pending",
+            "testStrategy": "Test that the agent factory can successfully create an instance of the ImageAltText agent. Verify that the created agent has the correct definition and capabilities."
+          },
+          {
+            "id": 5,
+            "title": "Integrate with orchestration system",
+            "description": "Update the orchestration logic to recognize image-related tasks and delegate to the ImageAltText agent",
+            "dependencies": [
+              4
+            ],
+            "details": "Modify the orchestration system to detect when content contains images that need alt text. Implement logic to delegate these tasks to the ImageAltText agent. Handle the results from the agent and integrate them back into the workflow. Add error handling and logging for the image processing operations.",
+            "status": "pending",
+            "testStrategy": "Create end-to-end tests that simulate document processing workflows. Verify that documents with images are correctly routed to the ImageAltText agent. Test error scenarios and ensure proper error handling."
+          }
+        ]
+      },
+      {
+        "id": 25,
+        "title": "Add MarkItDown Library as System Dependency",
+        "description": "Add the Microsoft MarkItDown library as a system dependency in the project's package management file and verify the installation is working correctly.",
+        "details": "1. Determine the appropriate package management file for the project (package.json for Node.js or requirements.txt for Python).\n\n2. For Node.js environment (most likely based on existing tasks):\n   ```bash\n   npm install @microsoft/markitdown --save\n   ```\n   \n   Add to package.json dependencies section:\n   ```json\n   \"dependencies\": {\n     \"@microsoft/markitdown\": \"^latest-version\",\n     // other existing dependencies\n   }\n   ```\n\n3. For Python environment (if applicable):\n   ```bash\n   pip install markitdown\n   ```\n   \n   Add to requirements.txt:\n   ```\n   markitdown==latest-version\n   ```\n\n4. Follow any additional installation steps from the official repository: https://github.com/microsoft/markitdown\n\n5. Create a simple verification script to test the installation:\n   ```typescript\n   // verify-markitdown.ts\n   import { MarkdownParser } from '@microsoft/markitdown';\n   \n   async function verifyMarkItDown() {\n     try {\n       const parser = new MarkdownParser();\n       const testMarkdown = '# Test Heading\\nThis is a test paragraph.';\n       const parsed = await parser.parse(testMarkdown);\n       \n       console.log('MarkItDown library successfully installed and working!');\n       console.log('Parsed result:', parsed);\n       return true;\n     } catch (error) {\n       console.error('Error verifying MarkItDown library:', error);\n       return false;\n     }\n   }\n   \n   verifyMarkItDown();\n   ```\n\n6. Document the dependency in the project's README.md file, including version information and link to the official repository.\n\n7. Update any relevant documentation about project dependencies to include MarkItDown.",
+        "testStrategy": "1. Run the verification script to confirm the library is correctly installed:\n   ```bash\n   ts-node verify-markitdown.ts\n   ```\n\n2. Verify the package appears in the dependency list:\n   ```bash\n   npm list | grep markitdown\n   ```\n\n3. Check that the package is correctly listed in package.json with the appropriate version.\n\n4. Create a simple test file with various Markdown elements and verify the library can parse it correctly:\n   ```typescript\n   import { MarkdownParser } from '@microsoft/markitdown';\n   import { strict as assert } from 'assert';\n   \n   async function testMarkItDown() {\n     const parser = new MarkdownParser();\n     const testMarkdown = '# Heading\\n\\nParagraph with **bold** and *italic* text.\\n\\n- List item 1\\n- List item 2';\n     const parsed = await parser.parse(testMarkdown);\n     \n     // Assert expected structure based on MarkItDown's output format\n     assert(parsed.headings.length === 1, 'Should have one heading');\n     assert(parsed.paragraphs.length === 1, 'Should have one paragraph');\n     assert(parsed.lists.length === 1, 'Should have one list');\n     \n     console.log('All tests passed!');\n   }\n   \n   testMarkItDown().catch(console.error);\n   ```\n\n5. Verify the library can be imported in the existing MarkItDown agent implementation (Task #23) without errors.",
+        "status": "pending",
+        "dependencies": [
+          23
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Identify package management file and verify project environment",
+            "description": "Determine whether the project uses Node.js (package.json) or Python (requirements.txt) and confirm the appropriate environment setup.",
+            "dependencies": [],
+            "details": "Check the project root directory for package.json or requirements.txt files. Review existing imports and code structure to confirm whether the project is using Node.js/TypeScript or Python. Document the findings to guide the installation process.",
+            "status": "pending",
+            "testStrategy": "Create a simple script to verify the environment configuration and output the detected project type."
+          },
+          {
+            "id": 2,
+            "title": "Install MarkItDown library using appropriate package manager",
+            "description": "Add the Microsoft MarkItDown library as a dependency using npm for Node.js or pip for Python.",
+            "dependencies": [
+              1
+            ],
+            "details": "For Node.js: Run 'npm install @microsoft/markitdown --save' to add the library and update package.json automatically. For Python: Run 'pip install markitdown' and manually add 'markitdown==latest-version' to requirements.txt. Ensure the latest stable version is installed.",
+            "status": "pending",
+            "testStrategy": "Verify the installation by checking package.json or requirements.txt for the added dependency and confirming the library files exist in node_modules or site-packages."
+          },
+          {
+            "id": 3,
+            "title": "Follow additional installation steps from official repository",
+            "description": "Check the Microsoft MarkItDown GitHub repository for any additional configuration or setup steps required.",
+            "dependencies": [
+              2
+            ],
+            "details": "Visit https://github.com/microsoft/markitdown to review installation instructions, configuration options, and any prerequisites. Follow any additional steps not covered by the standard package installation, such as setting up environment variables or additional dependencies.",
+            "status": "pending",
+            "testStrategy": "Create a checklist of required steps from the documentation and verify each has been completed."
+          },
+          {
+            "id": 4,
+            "title": "Create verification script to test the installation",
+            "description": "Develop a simple script that imports and uses the MarkItDown library to confirm it's working correctly.",
+            "dependencies": [
+              3
+            ],
+            "details": "Create a verification script (verify-markitdown.ts for Node.js or verify_markitdown.py for Python) that imports the library, parses a simple markdown string, and outputs the result. The script should handle errors appropriately and provide clear success/failure feedback.",
+            "status": "pending",
+            "testStrategy": "Run the verification script and confirm it executes without errors and correctly parses the test markdown."
+          },
+          {
+            "id": 5,
+            "title": "Update project documentation with MarkItDown dependency information",
+            "description": "Document the addition of MarkItDown in the project's README.md and any other relevant documentation files.",
+            "dependencies": [
+              4
+            ],
+            "details": "Add a section to README.md describing the MarkItDown dependency, including its purpose, version information, and link to the official repository. Update any existing dependency documentation to include MarkItDown. Include basic usage examples if appropriate for the project context.",
+            "status": "pending",
+            "testStrategy": "Review the updated documentation to ensure it accurately reflects the added dependency and provides sufficient information for other developers."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-07-14T19:24:46.745Z",
-      "updated": "2025-07-14T20:20:06.046Z",
+      "updated": "2025-07-15T06:44:51.206Z",
       "description": "Tasks for master context"
     }
   }

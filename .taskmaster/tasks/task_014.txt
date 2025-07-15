@@ -1,6 +1,6 @@
 # Task ID: 14
 # Title: Universal Orchestrator Framework Implementation
-# Status: pending
+# Status: in-progress
 # Dependencies: 13
 # Priority: high
 # Description: Build the central coordination engine that will manage the multi-agent workflow, serving as the foundation for all agent interactions.
@@ -38,7 +38,7 @@ interface OrchestrationResponse {
 5. End-to-end tests with simulated user requests
 
 # Subtasks:
-## 1. Core Architecture and Interfaces Design [pending]
+## 1. Core Architecture and Interfaces Design [done]
 ### Dependencies: None
 ### Description: Design and implement the foundational architecture and interfaces for the Universal Orchestrator Framework
 ### Details:
@@ -50,7 +50,7 @@ interface OrchestrationResponse {
 6. Create unit tests for interface contracts
 7. Implement a simple proof-of-concept to validate the architecture
 
-## 2. Request Analysis and Routing System [pending]
+## 2. Request Analysis and Routing System [in-progress]
 ### Dependencies: 14.1
 ### Description: Develop the system for analyzing incoming requests and routing them to appropriate handlers
 ### Details:

@@ -1,0 +1,184 @@
+# Task ID: 24
+# Title: ImageAltText Agent Implementation
+# Status: pending
+# Dependencies: 16, 20, 23
+# Priority: high
+# Description: Implement a specialized ImageAltText agent that leverages the Microsoft MarkItDown library to generate descriptive alt-text for images in Markdown documents using LLM integration.
+# Details:
+1. Install the Microsoft MarkItDown library as a dependency:
+```bash
+npm install @microsoft/markitdown
+```
+
+2. Create a new agent definition for ImageAltText:
+```typescript
+const imageAltTextAgentDefinition: AgentDefinition = {
+  domain: 'document-processing',
+  role: 'image-accessibility-specialist',
+  capabilities: [
+    'image-analysis',
+    'alt-text-generation',
+    'markdown-parsing',
+    'accessibility-enhancement'
+  ],
+  personalityTraits: [
+    'helpful',
+    'detail-oriented',
+    'accessibility-focused'
+  ],
+  tools: [
+    {
+      name: 'markitdown',
+      description: 'Microsoft MarkItDown library for Markdown processing'
+    },
+    {
+      name: 'llm-integration',
+      description: 'Integration with Large Language Models for image description'
+    }
+  ]
+};
+```
+
+3. Implement the ImageAltText agent class:
+```typescript
+class ImageAltTextAgent implements AgentInstance {
+  id: string;
+  definition: AgentDefinition;
+  state: AgentState;
+  memory: AgentMemory;
+  
+  constructor(id: string, memory: AgentMemory) {
+    this.id = id;
+    this.definition = imageAltTextAgentDefinition;
+    this.state = { status: 'ready' };
+    this.memory = memory;
+  }
+  
+  async execute(input: string): Promise<AgentResponse> {
+    try {
+      // Parse the markdown document
+      const markitdown = require('@microsoft/markitdown');
+      const document = await markitdown.parse(input);
+      
+      // Find all images without alt text or with placeholder alt text
+      const imagesToProcess = document.findAll('image').filter(img => 
+        !img.altText || img.altText.trim() === '' || 
+        img.altText === 'image' || img.altText === 'placeholder'
+      );
+      
+      // Process each image using LLM integration
+      for (const image of imagesToProcess) {
+        const altText = await this.generateAltText(image.url);
+        image.altText = altText;
+      }
+      
+      // Return the updated markdown
+      return {
+        type: 'success',
+        content: document.toString(),
+        metadata: {
+          imagesProcessed: imagesToProcess.length
+        }
+      };
+    } catch (error) {
+      return {
+        type: 'error',
+        content: `Error processing images: ${error.message}`,
+        metadata: { error: error.toString() }
+      };
+    }
+  }
+  
+  private async generateAltText(imageUrl: string): Promise<string> {
+    // Use MarkItDown's LLM integration for image description
+    const markitdown = require('@microsoft/markitdown');
+    const llmConfig = {
+      provider: process.env.LLM_PROVIDER,
+      apiKey: process.env.LLM_API_KEY,
+      model: process.env.LLM_MODEL
+    };
+    
+    // Generate descriptive alt text using the configured LLM
+    const description = await markitdown.generateImageDescription(imageUrl, llmConfig);
+    
+    // Store in agent memory for future reference
+    await this.memory.store({
+      type: 'image-description',
+      content: description,
+      metadata: {
+        imageUrl,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    return description;
+  }
+}
+```
+
+4. Register the agent with the AgentFactory:
+```typescript
+agentFactory.registerAgentType('image-alt-text', (id: string, memory: AgentMemory) => {
+  return new ImageAltTextAgent(id, memory);
+});
+```
+
+5. Update the orchestration system to recognize image-related tasks and delegate to the ImageAltText agent:
+```typescript
+// In the orchestration logic
+if (request.containsImages && (!request.imagesHaveAltText || request.needsAccessibilityEnhancement)) {
+  const imageAltTextAgent = await agentFactory.createAgent('image-alt-text');
+  const result = await imageAltTextAgent.execute(request.content);
+  // Process result and potentially pass to other agents in the workflow
+}
+```
+
+6. Implement configuration options for the ImageAltText agent:
+```typescript
+interface ImageAltTextConfig {
+  defaultLanguage: string;
+  detailLevel: 'basic' | 'detailed' | 'comprehensive';
+  maxDescriptionLength: number;
+  includeImageContext: boolean;
+}
+
+// Default configuration
+const defaultConfig: ImageAltTextConfig = {
+  defaultLanguage: 'en',
+  detailLevel: 'detailed',
+  maxDescriptionLength: 150,
+  includeImageContext: true
+};
+```
+
+# Test Strategy:
+1. Unit test the ImageAltText agent implementation:
+   - Test parsing of markdown documents with various image formats
+   - Verify detection of images without alt text
+   - Test generation of appropriate alt text descriptions
+   - Verify handling of different image types (JPG, PNG, SVG, etc.)
+   - Test error handling for invalid or inaccessible images
+
+2. Integration tests with the MarkItDown library:
+   - Verify correct installation and initialization of the library
+   - Test the LLM integration for image description generation
+   - Benchmark performance with different LLM providers
+   - Verify handling of rate limits and API errors
+
+3. End-to-end testing:
+   - Process sample markdown documents with multiple images
+   - Verify alt text is generated and inserted correctly
+   - Check that original document structure is preserved
+   - Validate accessibility improvements with automated tools
+
+4. Quality assessment of generated alt text:
+   - Manual review of descriptions for accuracy and helpfulness
+   - Test with screen readers to verify accessibility improvements
+   - Compare descriptions across different LLM models
+   - Verify appropriate length and detail level of descriptions
+
+5. Performance and resource testing:
+   - Measure processing time for documents with many images
+   - Monitor memory usage during batch processing
+   - Test concurrent processing of multiple documents
+   - Verify proper cleanup of resources after processing
