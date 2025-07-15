@@ -302,59 +302,241 @@ app.use(authMiddleware);
 
 ## Security Monitoring
 
-### Audit Logging
+### Comprehensive Audit Logging System
 
-All security operations are logged with structured audit entries:
+The security system includes a comprehensive audit logging and monitoring system with tamper-evident logs, real-time alerting, and threat detection.
+
+#### Audit Logger
+
+All security events are logged with cryptographic integrity verification:
 
 ```typescript
-interface SecurityAuditEntry {
-  timestamp: string;
-  event: string;
-  severity: 'info' | 'warning' | 'error' | 'critical';
-  details: Record<string, any>;
-  source: string;
-}
+import { AuditLogger, SecurityEventType, SecurityEventSeverity } from '@convergio/core/security/audit';
+
+const auditLogger = new AuditLogger({
+  enabled: true,
+  integrity: {
+    verificationEnabled: true,
+    signingKey: 'your-hmac-signing-key'
+  },
+  performance: {
+    batchSize: 100,
+    flushInterval: 30
+  }
+});
+
+// Log authentication attempts
+await auditLogger.logAuthenticationAttempt('user123', 'success', {
+  sourceIp: '192.168.1.100',
+  userAgent: 'ConvergioCLI/1.0'
+});
+
+// Log authorization decisions
+await auditLogger.logAuthorizationDecision(
+  'user123',
+  'documents',
+  'read',
+  'success'
+);
+
+// Log suspicious activities
+await auditLogger.logSuspiciousActivity(
+  'Multiple failed login attempts detected',
+  SecurityEventSeverity.WARNING,
+  { attempts: 5, timeWindow: '5 minutes' }
+);
 ```
 
-### Authorization Audit Logs
+#### Tamper-Evident Log Structure
 
-Comprehensive logging for all authorization decisions:
+Every log entry includes cryptographic integrity protection:
 
 ```typescript
-interface AuthorizationAuditLog {
+interface TamperEvidentLogEntry {
   id: string;
   timestamp: string;
-  userId: string;
-  action: string;
-  resource: string;
-  result: 'granted' | 'denied';
-  reason?: string;
-  context: AuthorizationContext;
+  eventType: SecurityEventType;
+  severity: SecurityEventSeverity;
+  outcome: 'success' | 'failure' | 'error';
+  message: string;
+  
+  // Tamper-evident properties
+  hash: string;
+  previousHash?: string;
+  signature?: string;
+  sequenceNumber: number;
+  
+  // Optional context
+  userId?: string;
   sessionId?: string;
+  sourceIp?: string;
+  userAgent?: string;
+  resource?: string;
+  action?: string;
+  details?: Record<string, any>;
 }
 ```
 
-### Health Checks
+#### Security Monitor
 
-Regular security health checks validate system state:
-
-```typescript
-const healthCheck = await securityManager.performHealthCheck();
-
-console.log('Overall security status:', healthCheck.overall);
-console.log('Issues found:', healthCheck.issues);
-console.log('Recommendations:', healthCheck.recommendations);
-```
-
-### Audit Log Management
+Real-time security monitoring with automated threat detection and alerting:
 
 ```typescript
-// Get recent audit entries
-const auditLog = securityManager.getAuditLog(50);
+import { SecurityMonitor } from '@convergio/core/security/audit';
 
-// Clear audit log (creates audit entry for this action)
-securityManager.clearAuditLog();
+const securityMonitor = new SecurityMonitor(config, auditLogger);
+
+// Add custom security alerts
+securityMonitor.addAlert({
+  id: 'brute-force-detection',
+  name: 'Brute Force Attack Detection',
+  description: 'Detects multiple failed authentication attempts',
+  eventTypes: [SecurityEventType.AUTHENTICATION_FAILURE],
+  conditions: [{
+    field: 'eventType',
+    operator: 'equals',
+    value: SecurityEventType.AUTHENTICATION_FAILURE,
+    timeWindow: 300, // 5 minutes
+    threshold: 5
+  }],
+  severity: SecurityEventSeverity.WARNING,
+  enabled: true,
+  notificationChannels: [
+    { type: 'webhook', config: { url: 'https://api.example.com/alerts' }, enabled: true }
+  ],
+  cooldownPeriod: 600 // 10 minutes
+});
+
+// Get real-time dashboard data
+const dashboardData = await securityMonitor.getDashboardData();
+console.log('Active threats:', dashboardData.overview.activeThreats);
+console.log('System health:', dashboardData.overview.systemHealth);
 ```
+
+#### Threat Detection
+
+Automated analysis of security events to identify potential threats:
+
+```typescript
+// Monitor detects patterns automatically
+securityMonitor.on('threatDetected', (threat) => {
+  console.log(`Threat detected: ${threat.type}`);
+  console.log(`Severity: ${threat.severity}`);
+  console.log(`Description: ${threat.description}`);
+  
+  // Automatically log high-severity threats
+  if (threat.severity === SecurityEventSeverity.CRITICAL) {
+    // Trigger immediate response
+    handleCriticalThreat(threat);
+  }
+});
+
+// Get current threat level
+const threatLevel = securityMonitor.getThreatLevel(); // 'low' | 'medium' | 'high' | 'critical'
+```
+
+#### Log Querying and Analysis
+
+Advanced querying capabilities for audit logs:
+
+```typescript
+// Query logs with filters
+const recentFailures = await auditLogger.queryLogs({
+  startTime: '2025-01-01T00:00:00Z',
+  endTime: '2025-01-31T23:59:59Z',
+  eventTypes: [SecurityEventType.AUTHENTICATION_FAILURE],
+  severity: [SecurityEventSeverity.WARNING, SecurityEventSeverity.ERROR],
+  userId: 'user123',
+  limit: 100,
+  sortBy: 'timestamp',
+  sortOrder: 'desc'
+});
+
+// Get comprehensive statistics
+const stats = auditLogger.getStatistics();
+console.log('Total events:', stats.totalEntries);
+console.log('Events by type:', stats.entriesByType);
+console.log('Events by severity:', stats.entriesBySeverity);
+console.log('Top users:', stats.topUsers);
+console.log('Integrity status:', stats.integrityStatus);
+```
+
+#### Alert Configuration
+
+Built-in security alerts with customizable conditions:
+
+```typescript
+interface SecurityAlert {
+  id: string;
+  name: string;
+  description: string;
+  eventTypes: SecurityEventType[];
+  conditions: AlertCondition[];
+  severity: SecurityEventSeverity;
+  enabled: boolean;
+  notificationChannels: NotificationChannel[];
+  cooldownPeriod: number; // seconds
+}
+
+interface AlertCondition {
+  field: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'threshold';
+  value: any;
+  timeWindow?: number; // seconds
+  threshold?: number; // for count-based conditions
+}
+```
+
+#### Default Security Alerts
+
+The system includes pre-configured alerts for common threats:
+
+- **Failed Authentication Attempts**: Detects brute force attacks
+- **Suspicious Activity**: Alerts on any flagged suspicious behavior
+- **Rate Limit Violations**: Identifies potential DoS attempts
+- **Policy Violations**: Monitors security policy compliance
+- **Certificate Issues**: Alerts on certificate validation failures
+- **Integrity Violations**: Detects tampered audit logs
+
+#### Integrity Verification
+
+Continuous verification of audit log integrity:
+
+```typescript
+// Verify all logs for tampering
+const isIntegrityValid = await auditLogger.verifyIntegrity();
+
+if (!isIntegrityValid) {
+  console.error('Audit log integrity compromised!');
+  // Handle security incident
+}
+
+// Listen for integrity violations
+auditLogger.on('integrityViolation', (violation) => {
+  console.error('Log tampering detected:', violation);
+  // Automatic escalation to critical threat
+});
+```
+
+#### Performance and Scalability
+
+The audit system is designed for high performance:
+
+- **Batched Writing**: Configurable batch sizes for optimal performance
+- **Indexing**: Efficient querying by type, user, and time
+- **Memory Management**: Configurable memory limits and automatic cleanup
+- **Compression**: Optional log compression for storage efficiency
+- **Streaming**: Real-time event streaming for external systems
+
+#### Compliance Features
+
+The audit system supports various compliance requirements:
+
+- **GDPR**: Data protection and right to erasure
+- **HIPAA**: Healthcare data audit requirements  
+- **SOX 404**: Financial audit and compliance
+- **Tamper-Evidence**: Cryptographic proof of log integrity
+- **Log Retention**: Configurable retention policies
 
 ## Security Best Practices
 
