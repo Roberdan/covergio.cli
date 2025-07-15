@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Task Completion Documentation",
+  "description": "Automatically updates project documentation and creates a well-explained commit when a task is marked as completed in the TaskMaster system",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      ".taskmaster/state.json",
+      ".taskmaster/tasks/task_*.txt"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A task has been completed in the TaskMaster system. Please:\n\n1. Analyze the completed task details from the TaskMaster files\n2. Update relevant project documentation (README.md, docs/, or other relevant documentation files) to reflect the changes made\n3. Create a comprehensive git commit with:\n   - A clear, descriptive commit title that references the completed task\n   - A detailed commit message explaining what was accomplished\n   - Reference to the specific task ID that was completed\n4. Start executing the next available task, until all tasks are done\n\nFocus on making the documentation updates meaningful and the commit message informative for future reference."
+  }
+}
