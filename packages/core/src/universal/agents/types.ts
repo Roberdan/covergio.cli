@@ -5,6 +5,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { ResourceLimits } from './interfaces.js';
 
 /**
  * Agent state enumeration
@@ -418,6 +419,11 @@ export interface AgentFactoryConfig {
   customValidators?: Record<string, (value: any) => boolean>;
   componentRegistry?: ComponentRegistry;
   diContainer?: DIContainer;
+  
+  // Lifecycle management configuration
+  resourceLimits?: Partial<ResourceLimits>;
+  healthMonitoringInterval?: number;
+  enableHealthMonitoring?: boolean;
 }
 
 /**

@@ -63,7 +63,20 @@ export type {
   PersonalityGenerationContext,
   CapabilityAssignmentContext,
   OptimizationRecommendation,
-  PerformanceAnalytics
+  PerformanceAnalytics,
+  
+  // Lifecycle management interfaces
+  IAgentLifecycle,
+  IAgentLifecycleManager,
+  AgentLifecycleState,
+  StateTransition,
+  AgentLifecycleInfo,
+  AgentHealthMetrics,
+  ResourceUsageMetrics,
+  ResourceLimits,
+  SerializedAgentState,
+  LifecycleStatistics,
+  HealthAlert
 } from './interfaces.js';
 
 // Personality system
@@ -96,3 +109,7 @@ export { IntegratedCapability } from './capabilities/IntegratedCapability.js';
 
 // Personality-Capability Manager
 export { PersonalityCapabilityManager } from './PersonalityCapabilityManager.js';
+
+// Agent Lifecycle Management
+export { AgentLifecycleManager } from './AgentLifecycleManager.js';
+export type { AgentLifecycleManagerConfig, AgentLifecycleManagerEvents } from './AgentLifecycleManager.js';

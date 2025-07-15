@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { PersonalityTrait, Capability, ToolDefinition } from './types.js';
+import { PersonalityTrait, Capability, ToolDefinition, AgentState, IAgent } from './types.js';
 import { PersonalityProfile } from './personality/PersonalityGenerator.js';
 import { ExtendedCapability } from './capabilities/CapabilityRegistry.js';
 
@@ -427,4 +427,331 @@ export interface IAgentFactoryIntegration {
    * Get personality-capability manager
    */
   getPersonalityCapabilityManager(): IPersonalityCapabilityManager;
+
+  /**
+   * Get agent lifecycle manager
+   */
+  getAgentLifecycleManager(): IAgentLifecycleManager;
+}
+
+/**
+ * Agent lifecycle management interface
+ */
+export interface IAgentLifecycle {
+  /**
+   * Initialize the agent with full setup
+   */
+  initialize(): Promise<void>;
+
+  /**
+   * Pause agent execution temporarily
+   */
+  pause(): Promise<void>;
+
+  /**
+   * Resume agent execution from paused state
+   */
+  resume(): Promise<void>;
+
+  /**
+   * Terminate agent and cleanup resources
+   */
+  terminate(): Promise<void>;
+
+  /**
+   * Get current lifecycle state
+   */
+  getLifecycleState(): AgentLifecycleState;
+
+  /**
+   * Check if agent can transition to a new state
+   */
+  canTransitionTo(newState: AgentState): boolean;
+
+  /**
+   * Force a state transition (admin only)
+   */
+  forceTransition(newState: AgentState): Promise<void>;
+}
+
+/**
+ * Agent lifecycle manager interface
+ */
+export interface IAgentLifecycleManager {
+  /**
+   * Register an agent for lifecycle management
+   */
+  registerAgent(agent: IAgent): Promise<void>;
+
+  /**
+   * Unregister an agent from lifecycle management
+   */
+  unregisterAgent(agentId: string): Promise<void>;
+
+  /**
+   * Get lifecycle state for an agent
+   */
+  getAgentLifecycleState(agentId: string): Promise<AgentLifecycleState | null>;
+
+  /**
+   * Pause an agent
+   */
+  pauseAgent(agentId: string): Promise<void>;
+
+  /**
+   * Resume an agent
+   */
+  resumeAgent(agentId: string): Promise<void>;
+
+  /**
+   * Terminate an agent
+   */
+  terminateAgent(agentId: string): Promise<void>;
+
+  /**
+   * Get all managed agents
+   */
+  getManagedAgents(): Promise<AgentLifecycleInfo[]>;
+
+  /**
+   * Get agents by state
+   */
+  getAgentsByState(state: AgentState): Promise<AgentLifecycleInfo[]>;
+
+  /**
+   * Serialize agent state for persistence
+   */
+  serializeAgent(agentId: string): Promise<SerializedAgentState>;
+
+  /**
+   * Deserialize and restore agent state
+   */
+  deserializeAgent(serializedState: SerializedAgentState): Promise<IAgent>;
+
+  /**
+   * Monitor agent health and performance
+   */
+  monitorAgent(agentId: string): Promise<AgentHealthMetrics>;
+
+  /**
+   * Get resource usage for an agent
+   */
+  getResourceUsage(agentId: string): Promise<ResourceUsageMetrics>;
+
+  /**
+   * Cleanup terminated agents
+   */
+  cleanupTerminatedAgents(): Promise<number>;
+
+  /**
+   * Get lifecycle statistics
+   */
+  getLifecycleStatistics(): Promise<LifecycleStatistics>;
+
+  /**
+   * Enable/disable automatic health monitoring
+   */
+  setHealthMonitoring(enabled: boolean, intervalMs?: number): void;
+
+  /**
+   * Set resource limits for agents
+   */
+  setResourceLimits(limits: ResourceLimits): void;
+
+  /**
+   * Upgrade agent to new version
+   */
+  upgradeAgent(agentId: string, newVersion: string): Promise<void>;
+}
+
+/**
+ * Agent lifecycle state information
+ */
+export interface AgentLifecycleState {
+  agentId: string;
+  currentState: AgentState;
+  previousState: AgentState | null;
+  stateHistory: StateTransition[];
+  uptime: number;
+  lastStateChange: Date;
+  isHealthy: boolean;
+  canPause: boolean;
+  canResume: boolean;
+  canTerminate: boolean;
+  metadata: Record<string, any>;
+}
+
+/**
+ * State transition record
+ */
+export interface StateTransition {
+  fromState: AgentState;
+  toState: AgentState;
+  timestamp: Date;
+  reason: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Agent lifecycle information
+ */
+export interface AgentLifecycleInfo {
+  agentId: string;
+  definition: {
+    domain: string;
+    role: string;
+    version: string;
+  };
+  state: AgentState;
+  health: AgentHealthMetrics;
+  resources: ResourceUsageMetrics;
+  uptime: number;
+  createdAt: Date;
+  lastActivity: Date;
+  metadata: Record<string, any>;
+}
+
+/**
+ * Agent health metrics
+ */
+export interface AgentHealthMetrics {
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  uptime: number;
+  memoryUsage: number;
+  cpuUsage: number;
+  executionCount: number;
+  successRate: number;
+  errorCount: number;
+  lastError: string | null;
+  lastActivity: Date;
+  responseTime: {
+    average: number;
+    median: number;
+    percentile95: number;
+  };
+  healthScore: number; // 0-100
+  alerts: HealthAlert[];
+}
+
+/**
+ * Health alert
+ */
+export interface HealthAlert {
+  level: 'info' | 'warning' | 'error' | 'critical';
+  message: string;
+  timestamp: Date;
+  metric: string;
+  value: number;
+  threshold: number;
+}
+
+/**
+ * Resource usage metrics
+ */
+export interface ResourceUsageMetrics {
+  memory: {
+    used: number;
+    peak: number;
+    limit: number;
+    unit: 'MB' | 'GB';
+  };
+  cpu: {
+    usage: number;
+    peak: number;
+    limit: number;
+    unit: 'percent';
+  };
+  storage: {
+    used: number;
+    limit: number;
+    unit: 'MB' | 'GB';
+  };
+  network: {
+    bytesIn: number;
+    bytesOut: number;
+    connections: number;
+  };
+  executionTime: {
+    total: number;
+    average: number;
+    peak: number;
+    unit: 'milliseconds';
+  };
+}
+
+/**
+ * Resource limits configuration
+ */
+export interface ResourceLimits {
+  memory: {
+    maxUsage: number;
+    unit: 'MB' | 'GB';
+  };
+  cpu: {
+    maxUsage: number;
+    unit: 'percent';
+  };
+  storage: {
+    maxUsage: number;
+    unit: 'MB' | 'GB';
+  };
+  executionTime: {
+    maxDuration: number;
+    unit: 'milliseconds';
+  };
+  concurrency: {
+    maxConcurrentTasks: number;
+  };
+}
+
+/**
+ * Serialized agent state for persistence
+ */
+export interface SerializedAgentState {
+  agentId: string;
+  definition: any;
+  config: any;
+  state: AgentState;
+  memory: string; // Serialized memory data
+  personalityState: any;
+  capabilityStates: Record<string, any>;
+  executionStats: {
+    executionCount: number;
+    errorCount: number;
+    startTime: Date;
+    lastActivity: Date;
+  };
+  metadata: Record<string, any>;
+  version: string;
+  serializedAt: Date;
+}
+
+/**
+ * Lifecycle statistics
+ */
+export interface LifecycleStatistics {
+  totalAgents: number;
+  activeAgents: number;
+  pausedAgents: number;
+  terminatedAgents: number;
+  erroredAgents: number;
+  agentsByState: Record<AgentState, number>;
+  averageUptime: number;
+  totalExecutions: number;
+  averageResponseTime: number;
+  systemHealth: {
+    overall: 'healthy' | 'degraded' | 'unhealthy';
+    score: number;
+    alerts: number;
+  };
+  resourceUtilization: {
+    memory: number;
+    cpu: number;
+    storage: number;
+  };
+  performance: {
+    throughput: number;
+    errorRate: number;
+    successRate: number;
+  };
 }

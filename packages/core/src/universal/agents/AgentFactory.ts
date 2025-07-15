@@ -25,9 +25,11 @@ import {
 import { PersonalityGenerator } from './personality/PersonalityGenerator.js';
 import { CapabilityRegistry } from './capabilities/CapabilityRegistry.js';
 import { PersonalityCapabilityManager } from './PersonalityCapabilityManager.js';
+import { AgentLifecycleManager } from './AgentLifecycleManager.js';
 import { 
   IPersonalityCapabilityManager,
   IAgentFactoryIntegration,
+  IAgentLifecycleManager,
   CompatibilityMatrix,
   CompositionStrategy
 } from './interfaces.js';
@@ -117,6 +119,7 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
   private personalityGenerator: PersonalityGenerator;
   private capabilityRegistry: CapabilityRegistry;
   private personalityCapabilityManager: PersonalityCapabilityManager;
+  private agentLifecycleManager: AgentLifecycleManager;
   private compositionStrategies = new Map<string, CompositionStrategy>();
 
   constructor(config: AgentFactoryConfig = {}) {
@@ -153,6 +156,11 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
       this.personalityGenerator, 
       this.capabilityRegistry
     );
+    this.agentLifecycleManager = new AgentLifecycleManager({
+      resourceLimits: config.resourceLimits,
+      healthMonitoringInterval: config.healthMonitoringInterval,
+      enableHealthMonitoring: config.enableHealthMonitoring
+    });
 
     this.initializeDefaultComponents();
     this.initializeCompositionStrategies();
@@ -197,6 +205,9 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
       // Register agent and update statistics
       this.activeAgents.add(agent.id);
       this.updateStatistics(agent, startTime);
+
+      // Register agent with lifecycle manager
+      await this.agentLifecycleManager.registerAgent(agent);
 
       // Set up agent event listeners
       this.setupAgentEventListeners(agent);
@@ -644,6 +655,13 @@ export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentF
    */
   getPersonalityCapabilityManager(): IPersonalityCapabilityManager {
     return this.personalityCapabilityManager;
+  }
+
+  /**
+   * Get agent lifecycle manager
+   */
+  getAgentLifecycleManager(): IAgentLifecycleManager {
+    return this.agentLifecycleManager;
   }
 
   /**

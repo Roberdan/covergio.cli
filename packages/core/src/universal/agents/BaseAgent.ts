@@ -19,6 +19,7 @@ import {
   AgentContext,
   AgentEvents
 } from './types.js';
+import { IAgentLifecycle, AgentLifecycleState } from './interfaces.js';
 
 /**
  * Simple in-memory agent memory implementation
@@ -69,7 +70,7 @@ export class SimpleAgentMemory implements AgentMemory {
 /**
  * Base agent implementation
  */
-export abstract class BaseAgent extends EventEmitter implements IAgent {
+export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLifecycle {
   public readonly id: string;
   public readonly definition: AgentDefinition;
   public readonly memory: AgentMemory;
@@ -392,6 +393,73 @@ export abstract class BaseAgent extends EventEmitter implements IAgent {
     this._errorCount = state.errorCount;
     this._startTime = new Date(state.startTime);
     this._lastActivity = new Date(state.lastActivity);
+  }
+
+  /**
+   * Get current lifecycle state
+   */
+  getLifecycleState(): AgentLifecycleState {
+    return {
+      agentId: this.id,
+      currentState: this._state,
+      previousState: null, // Would need to track this separately
+      stateHistory: [], // Would need to track this separately
+      uptime: Date.now() - this._startTime.getTime(),
+      lastStateChange: this._lastActivity,
+      isHealthy: this._state !== 'error' && this._state !== 'terminated',
+      canPause: this._state === 'ready' || this._state === 'busy',
+      canResume: this._state === 'paused',
+      canTerminate: this._state !== 'terminated',
+      metadata: {}
+    };
+  }
+
+  /**
+   * Check if agent can transition to a new state
+   */
+  canTransitionTo(newState: AgentState): boolean {
+    const validTransitions: Record<AgentState, AgentState[]> = {
+      'initializing': ['ready', 'error', 'terminated'],
+      'ready': ['busy', 'paused', 'terminated'],
+      'busy': ['ready', 'error', 'paused', 'terminated'],
+      'paused': ['ready', 'terminated'],
+      'error': ['ready', 'terminated'],
+      'terminated': [] // Terminal state
+    };
+
+    return validTransitions[this._state]?.includes(newState) || false;
+  }
+
+  /**
+   * Force a state transition (admin only)
+   */
+  async forceTransition(newState: AgentState): Promise<void> {
+    if (!this.canTransitionTo(newState)) {
+      console.warn(`Forcing invalid state transition from ${this._state} to ${newState}`);
+    }
+
+    const previousState = this._state;
+    this._state = newState;
+    this._lastActivity = new Date();
+
+    this.emit('state-changed', {
+      previousState,
+      newState,
+      timestamp: new Date()
+    });
+
+    // Handle special state transitions
+    switch (newState) {
+      case 'terminated':
+        await this.onTerminate();
+        break;
+      case 'ready':
+        if (previousState === 'error') {
+          // Reset error state
+          this._errorCount = 0;
+        }
+        break;
+    }
   }
 
   /**
