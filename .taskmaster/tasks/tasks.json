@@ -94,7 +94,7 @@
         "dependencies": [
           14
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -152,7 +152,7 @@
         "dependencies": [
           14
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -160,7 +160,7 @@
             "description": "Design and implement the foundational interfaces and the main factory class that will be responsible for agent creation",
             "dependencies": [],
             "details": "1. Define IAgent interface with core methods like execute(), getCapabilities(), getPersonality()\n2. Create IAgentFactory interface with createAgent() and registerAgentType() methods\n3. Implement AgentFactory class that handles agent instantiation\n4. Design component registration system for pluggable agent parts\n5. Create configuration models for agent initialization\n6. Implement basic dependency injection for agent components\n7. Add unit tests for factory pattern implementation\n8. Document API with examples\n\nValidation Criteria:\n- Factory can create basic agent instances\n- Interface contracts are comprehensive and extensible\n- Unit tests pass with >90% coverage\n- Factory supports different agent configurations",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -691,7 +691,7 @@
     ],
     "metadata": {
       "created": "2025-07-14T19:24:46.745Z",
-      "updated": "2025-07-15T10:23:17.773Z",
+      "updated": "2025-07-15T14:12:51.570Z",
       "description": "Tasks for master context"
     }
   }
