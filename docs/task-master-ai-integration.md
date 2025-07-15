@@ -57,12 +57,16 @@ The Task-Master-AI integration provides intelligent request analysis, task decom
 - **Complexity Analysis**: Assessment of task complexity and duration
 - **Risk Analysis**: Identification of potential risks and challenges
 
-### 3. Task Decomposition
+### 3. Task Decomposition System
 
-- **Subtask Generation**: Automated breakdown of complex tasks
-- **Dependency Management**: Identification of task dependencies
-- **Priority Assignment**: Intelligent prioritization of subtasks
-- **Validation**: Comprehensive validation of generated subtasks
+- **Subtask Generation**: Automated breakdown of complex tasks using AI
+- **Dependency Management**: Advanced dependency graph management
+- **Priority Assignment**: Intelligent prioritization with multiple strategies
+- **Validation**: Comprehensive validation with circular dependency detection
+- **Optimization**: Graph optimization for better parallelism and resource usage
+- **Recovery Mechanisms**: Fallback strategies when API is unavailable
+- **Caching**: Smart caching with configurable TTL and size limits
+- **Metrics**: Comprehensive metrics tracking and performance monitoring
 
 ### 4. Expertise Identification
 
@@ -108,23 +112,46 @@ console.log('Detected domains:', domainResult.response.analysis.domains);
 ### Task Decomposition
 
 ```typescript
+import { TaskDecompositionSystem } from './src/universal/integrations/taskmaster/decomposition/TaskDecompositionSystem.js';
+
+// Initialize decomposition system
+const decompositionSystem = new TaskDecompositionSystem(client, {
+  enableCaching: true,
+  enableValidation: true,
+  enableOptimization: true,
+  maxRetries: 3,
+  timeout: 30000
+});
+
 // Decompose a complex task into subtasks
-const decompositionResult = await client.decomposeTask(
-  'Build a full-stack e-commerce application with payment processing',
-  { 
+const decompositionResult = await decompositionSystem.decompose({
+  originalTask: 'Build a full-stack e-commerce application with payment processing',
+  context: {
     userId: 'user123',
     projectId: 'proj456',
     teamExpertise: ['react', 'nodejs', 'mongodb'],
     constraints: {
       timeLimit: 7200000, // 2 hours
-      priority: 'high'
+      priority: 'high',
+      maxSubtasks: 15
     }
+  },
+  options: {
+    enableValidation: true,
+    enableOptimization: true,
+    generateDependencies: true
   }
-);
+});
 
 // Access decomposed subtasks
-const subtasks = decompositionResult.response.decomposition?.subtasks;
+const subtasks = decompositionResult.decomposition.subtasks;
 console.log('Generated subtasks:', subtasks);
+console.log('Validation result:', decompositionResult.validation);
+console.log('Optimization result:', decompositionResult.optimization);
+
+// Get execution order
+const executionOrder = decompositionSystem.getExecutionOrder(decompositionResult.decomposition);
+console.log('Execution order:', executionOrder);
 ```
 
 ### Expertise Identification

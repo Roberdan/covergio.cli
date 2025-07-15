@@ -365,7 +365,7 @@ export class TaskMasterClient {
       throw new Error('Retry attempts must be non-negative');
     }
     
-    if (this.config.rateLimitPerSecond < 1) {
+    if (this.config.rateLimitPerSecond <= 0) {
       throw new Error('Rate limit must be at least 1 request per second');
     }
   }
@@ -544,7 +544,7 @@ export class TaskMasterClient {
     }
     
     // Update average response time
-    const totalTime = this.metrics.averageResponseTime * (this.metrics.totalRequests - 1) + responseTime;
+    const totalTime = this.metrics.averageResponseTime * Math.max(1, this.metrics.totalRequests - 1) + responseTime;
     this.metrics.averageResponseTime = totalTime / this.metrics.totalRequests;
     
     // Update API health

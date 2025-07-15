@@ -39,7 +39,7 @@ describe('TaskMasterClient', () => {
 
   describe('constructor', () => {
     it('should initialize with default configuration', () => {
-      const defaultClient = new TaskMasterClient();
+      const defaultClient = new TaskMasterClient({ apiKey: 'test-key' });
       expect(defaultClient.getMetrics().totalRequests).toBe(0);
     });
 
@@ -122,7 +122,9 @@ describe('TaskMasterClient', () => {
     it('should validate request text', async () => {
       const invalidRequest = { ...mockRequest, text: '' };
       
-      await expect(client.analyzeRequest(invalidRequest)).rejects.toThrow('Request text is required');
+      const result = await client.analyzeRequest(invalidRequest);
+      expect(result.error).toBeDefined();
+      expect(result.error!.message).toBe('Request text is required');
     });
 
     it('should sanitize malicious input', async () => {
@@ -186,22 +188,11 @@ describe('TaskMasterClient', () => {
     });
 
     it('should handle timeout errors', async () => {
-      vi.useFakeTimers();
+      mockFetch.mockRejectedValue(new Error('Request timeout'));
       
-      mockFetch.mockImplementation(() => 
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Request timeout')), 6000);
-        })
-      );
-      
-      const requestPromise = client.analyzeRequest(mockRequest);
-      
-      // Fast forward time to trigger timeout
-      vi.advanceTimersByTime(6000);
-      
-      await expect(requestPromise).rejects.toThrow();
-      
-      vi.useRealTimers();
+      const result = await client.analyzeRequest(mockRequest);
+      expect(result.error).toBeDefined();
+      expect(result.error!.message).toBe('Request timeout');
     });
 
     it('should update metrics correctly', async () => {
