@@ -22,6 +22,15 @@ import {
   AgentMemory,
   PersonalityTrait
 } from './types.js';
+import { PersonalityGenerator } from './personality/PersonalityGenerator.js';
+import { CapabilityRegistry } from './capabilities/CapabilityRegistry.js';
+import { PersonalityCapabilityManager } from './PersonalityCapabilityManager.js';
+import { 
+  IPersonalityCapabilityManager,
+  IAgentFactoryIntegration,
+  CompatibilityMatrix,
+  CompositionStrategy
+} from './interfaces.js';
 
 /**
  * Simple component registry implementation
@@ -93,9 +102,9 @@ class SimpleDIContainer implements DIContainer {
 }
 
 /**
- * Agent factory implementation
+ * Agent factory implementation with integrated personality and capability systems
  */
-export class AgentFactory extends EventEmitter implements IAgentFactory {
+export class AgentFactory extends EventEmitter implements IAgentFactory, IAgentFactoryIntegration {
   private agentCreators = new Map<string, AgentCreator>();
   private templates = new Map<string, AgentTemplate>();
   private componentRegistry: ComponentRegistry;
@@ -103,6 +112,12 @@ export class AgentFactory extends EventEmitter implements IAgentFactory {
   private config: AgentFactoryConfig;
   private statistics: FactoryStatistics;
   private activeAgents = new Set<string>();
+  
+  // Integrated personality and capability systems
+  private personalityGenerator: PersonalityGenerator;
+  private capabilityRegistry: CapabilityRegistry;
+  private personalityCapabilityManager: PersonalityCapabilityManager;
+  private compositionStrategies = new Map<string, CompositionStrategy>();
 
   constructor(config: AgentFactoryConfig = {}) {
     super();
@@ -131,7 +146,17 @@ export class AgentFactory extends EventEmitter implements IAgentFactory {
       uptime: Date.now()
     };
 
+    // Initialize integrated systems
+    this.personalityGenerator = new PersonalityGenerator();
+    this.capabilityRegistry = new CapabilityRegistry();
+    this.personalityCapabilityManager = new PersonalityCapabilityManager(
+      this.personalityGenerator, 
+      this.capabilityRegistry
+    );
+
     this.initializeDefaultComponents();
+    this.initializeCompositionStrategies();
+    this.setupIntegratedEventListeners();
   }
 
   /**
@@ -523,6 +548,159 @@ export class AgentFactory extends EventEmitter implements IAgentFactory {
   private isValidTool(tool: string): boolean {
     // In a real implementation, this would check against a tool registry
     return typeof tool === 'string' && tool.length > 0;
+  }
+
+  /**
+   * Initialize composition strategies
+   */
+  private initializeCompositionStrategies(): void {
+    // Default composition strategies will be implemented here
+    this.registerCompositionStrategy({
+      id: 'sequential',
+      name: 'Sequential Composition',
+      description: 'Combine capabilities in sequence',
+      canHandle: (capabilities: string[]) => capabilities.length > 1,
+      compose: async (capabilities) => {
+        // Simple sequential composition
+        return capabilities[0]; // Return first capability as base
+      },
+      getPriority: () => 1
+    });
+  }
+
+  /**
+   * Setup event listeners for integrated systems
+   */
+  private setupIntegratedEventListeners(): void {
+    this.personalityCapabilityManager.on('personality-generated', (data) => {
+      this.emit('personality-generated', data);
+    });
+
+    this.personalityCapabilityManager.on('capabilities-assigned', (data) => {
+      this.emit('capabilities-assigned', data);
+    });
+  }
+
+  // IAgentFactoryIntegration implementation methods
+
+  /**
+   * Create integrated personality
+   */
+  async createPersonality(profile: any, context: any): Promise<any> {
+    return this.personalityCapabilityManager.generateOptimalPersonality(
+      context.existingCapabilities || [],
+      context
+    );
+  }
+
+  /**
+   * Create integrated capability
+   */
+  async createCapability(definition: any, context: any): Promise<any> {
+    // This would create an IntegratedCapability from the definition
+    // For now, return a placeholder
+    throw new Error('Not implemented yet');
+  }
+
+  /**
+   * Get compatibility matrix
+   */
+  async getCompatibilityMatrix(): Promise<CompatibilityMatrix> {
+    return this.personalityCapabilityManager.getCompatibilityMatrix();
+  }
+
+  /**
+   * Update compatibility matrix
+   */
+  async updateCompatibilityMatrix(matrix: Partial<CompatibilityMatrix>): Promise<void> {
+    // Update the manager's compatibility matrix
+    for (const [personalityId, capabilityData] of Object.entries(matrix)) {
+      for (const [capabilityId, data] of Object.entries(capabilityData)) {
+        await this.personalityCapabilityManager.updateCompatibilityMatrix(
+          personalityId,
+          capabilityId,
+          data.compatibility
+        );
+      }
+    }
+  }
+
+  /**
+   * Get composition strategies
+   */
+  getCompositionStrategies(): CompositionStrategy[] {
+    return Array.from(this.compositionStrategies.values());
+  }
+
+  /**
+   * Register composition strategy
+   */
+  registerCompositionStrategy(strategy: CompositionStrategy): void {
+    this.compositionStrategies.set(strategy.id, strategy);
+  }
+
+  /**
+   * Get personality-capability manager
+   */
+  getPersonalityCapabilityManager(): IPersonalityCapabilityManager {
+    return this.personalityCapabilityManager;
+  }
+
+  /**
+   * Enhanced agent creation with personality and capability optimization
+   */
+  async createAgentWithOptimization(config: AgentConfig): Promise<IAgent> {
+    // Generate optimal personality for required capabilities
+    const personality = await this.personalityCapabilityManager.generateOptimalPersonality(
+      config.capabilities || [],
+      {
+        domain: config.domain,
+        role: config.role,
+        requirements: [],
+        constraints: [],
+        existingCapabilities: config.capabilities || [],
+        userPreferences: config.customSettings || {},
+        collaborationNeeds: []
+      }
+    );
+
+    // Assign optimal capabilities for the personality
+    const capabilities = await this.personalityCapabilityManager.assignOptimalCapabilities(
+      personality.id,
+      {
+        personalityId: personality.id,
+        domain: config.domain,
+        role: config.role,
+        requiredCapabilities: config.capabilities || [],
+        optionalCapabilities: [],
+        constraints: [],
+        performanceRequirements: {}
+      }
+    );
+
+    // Update config with optimized personality and capabilities
+    const optimizedConfig: AgentConfig = {
+      ...config,
+      personalityTraits: personality.traits,
+      capabilities: capabilities.map(c => c.id)
+    };
+
+    // Create agent with optimized configuration
+    return this.createAgent(optimizedConfig);
+  }
+
+  /**
+   * Get personality generator
+   */
+  getPersonalityGenerator(): PersonalityGenerator {
+    return this.personalityGenerator;
+  }
+
+  /**
+   * Get capability registry
+   */
+  getCapabilityRegistry(): CapabilityRegistry {
+    return this.capabilityRegistry;
   }
 }
 
