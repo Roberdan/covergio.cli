@@ -9,7 +9,8 @@
       "env": {},
       "disabled": false,
       "autoApprove": [
-        "resolve-library-id"
+        "resolve-library-id",
+        "get-library-docs"
       ]
     }
   }

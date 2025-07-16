@@ -19,6 +19,9 @@ export * from './interfaces.js';
 // Vector database and embedding system
 export * from './vector/index.js';
 
+// Cross-agent memory sharing system
+export * from './sharing/index.js';
+
 // Core implementations
 export { AgentMemoryEngine } from './AgentMemoryEngine.js';
 export { DefaultRelevanceScorer } from './RelevanceScorer.js';
