@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Text, Box } from 'ink';
-import { ConversationMessage, AgentInstance } from '../../../types/shared.ts';
+import { ConversationMessage, AgentInstance } from '../../../types/shared.js';
 
 interface AgentMessageProps {
   message: ConversationMessage;

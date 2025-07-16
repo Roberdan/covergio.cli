@@ -7,7 +7,7 @@
 import React from 'react';
 import { Text, Box } from 'ink';
 
-import { TaskDependency } from '../../../types/shared.ts';
+import { TaskDependency } from '../../../types/shared.js';
 
 interface TaskProgressBarProps {
   taskId: string;

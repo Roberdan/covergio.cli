@@ -1132,6 +1132,9 @@ export const useSlashCommandProcessor = (
                     );
                   }
                 }
+              case 'command':
+                // Execute another command recursively
+                return await handleSlashCommand(result.command);
               default: {
                 const unhandled: never = result;
                 throw new Error(`Unhandled slash command result: ${unhandled}`);

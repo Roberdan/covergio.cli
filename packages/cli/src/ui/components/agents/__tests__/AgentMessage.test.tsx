@@ -7,7 +7,7 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { AgentMessage } from '../AgentMessage.js';
-import { ConversationMessage, AgentInstance } from '../../../types/shared.ts';
+import { ConversationMessage, AgentInstance } from '../../../types/shared.js';
 
 // Mock data
 const mockMessage: ConversationMessage = {

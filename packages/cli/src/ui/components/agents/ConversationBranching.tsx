@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Text, Box } from 'ink';
-import { ConversationTurn, AgentInstance, CollaborationPattern, ConversationBranch } from '../../../types/shared.ts';
+import { ConversationTurn, AgentInstance, CollaborationPattern, ConversationBranch } from '../../../types/shared.js';
 
 interface ConversationBranchingProps {
   branches: ConversationBranch[];

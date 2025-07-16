@@ -7,7 +7,7 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { AgentConversation } from '../AgentConversation.js';
-import { ConversationTurn, AgentInstance, CollaborationPattern } from '../../../types/shared.ts';
+import { ConversationTurn, AgentInstance, CollaborationPattern } from '../../../types/shared.js';
 
 // Mock agents
 const mockAgents: AgentInstance[] = [

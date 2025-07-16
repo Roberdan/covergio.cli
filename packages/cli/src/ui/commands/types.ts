@@ -18,6 +18,9 @@ export interface CommandContext {
     settings: LoadedSettings;
     git: GitService | undefined;
     logger: Logger;
+    orchestrator?: any;
+    taskmaster?: any;
+    history?: any;
   };
   // UI state and history management
   ui: {
@@ -56,7 +59,7 @@ export interface ToolActionReturn {
  */
 export interface MessageActionReturn {
   type: 'message';
-  messageType: 'info' | 'error';
+  messageType: 'info' | 'error' | 'success' | 'warning';
   content: string;
 }
 
@@ -69,10 +72,20 @@ export interface OpenDialogActionReturn {
   dialog: 'help' | 'auth' | 'theme';
 }
 
+/**
+ * The return type for a command action that executes another command.
+ */
+export interface CommandActionReturn {
+  type: 'command';
+  command: string;
+  addToHistory?: boolean;
+}
+
 export type SlashCommandActionReturn =
   | ToolActionReturn
   | MessageActionReturn
-  | OpenDialogActionReturn;
+  | OpenDialogActionReturn
+  | CommandActionReturn;
 // The standardized contract for any command in the system.
 export interface SlashCommand {
   name: string;

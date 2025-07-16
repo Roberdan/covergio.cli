@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Text, Box, useInput, useApp } from 'ink';
-import { AgentInstance } from '../../../types/shared.ts';
+import { AgentInstance } from '../../../types/shared.js';
 import { AgentStatusIndicator } from './AgentStatusIndicator.js';
 
 interface AgentSelectorProps {

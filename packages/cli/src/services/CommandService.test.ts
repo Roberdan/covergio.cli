@@ -30,6 +30,31 @@ vi.mock('../ui/commands/themeCommand.js', () => ({
   themeCommand: { name: 'theme', description: 'Mock Theme' },
 }));
 
+// Mock the enhanced command modules
+vi.mock('../ui/commands/agentCommand.js', () => ({
+  agentCommand: { name: 'agents', description: 'Mock Agent Commands' },
+}));
+vi.mock('../ui/commands/domainsCommand.js', () => ({
+  domainsCommand: { name: 'domains', description: 'Mock Domain Commands' },
+}));
+vi.mock('../ui/commands/orchestrateCommand.js', () => ({
+  orchestrateCommand: { name: 'orchestrate', description: 'Mock Orchestration Commands' },
+}));
+vi.mock('../ui/commands/taskmasterCommand.js', () => ({
+  taskmasterCommand: { name: 'taskmaster', description: 'Mock TaskMaster Commands' },
+}));
+vi.mock('../ui/commands/historyCommand.js', () => ({
+  historyCommand: { name: 'history', description: 'Mock History Commands' },
+}));
+vi.mock('../ui/commands/completionService.js', () => ({
+  createCompletionService: vi.fn().mockReturnValue({
+    getCompletions: vi.fn(),
+    getAgentCompletions: vi.fn(),
+    getDomainCompletions: vi.fn(),
+    getTaskCompletions: vi.fn(),
+  }),
+}));
+
 describe('CommandService', () => {
   describe('when using default production loader', () => {
     let commandService: CommandService;
@@ -54,7 +79,7 @@ describe('CommandService', () => {
         const tree = commandService.getCommands();
 
         // Post-condition assertions
-        expect(tree.length).toBe(5);
+        expect(tree.length).toBe(10);
 
         const commandNames = tree.map((cmd) => cmd.name);
         expect(commandNames).toContain('auth');
@@ -62,19 +87,24 @@ describe('CommandService', () => {
         expect(commandNames).toContain('help');
         expect(commandNames).toContain('clear');
         expect(commandNames).toContain('theme');
+        expect(commandNames).toContain('agents');
+        expect(commandNames).toContain('domains');
+        expect(commandNames).toContain('orchestrate');
+        expect(commandNames).toContain('taskmaster');
+        expect(commandNames).toContain('history');
       });
 
       it('should overwrite any existing commands when called again', async () => {
         // Load once
         await commandService.loadCommands();
-        expect(commandService.getCommands().length).toBe(5);
+        expect(commandService.getCommands().length).toBe(10);
 
         // Load again
         await commandService.loadCommands();
         const tree = commandService.getCommands();
 
         // Should not append, but overwrite
-        expect(tree.length).toBe(5);
+        expect(tree.length).toBe(10);
       });
     });
 
@@ -86,14 +116,51 @@ describe('CommandService', () => {
         await commandService.loadCommands();
 
         const loadedTree = commandService.getCommands();
-        expect(loadedTree.length).toBe(5);
+        expect(loadedTree.length).toBe(10);
         expect(loadedTree).toEqual([
           authCommand,
           clearCommand,
           helpCommand,
           memoryCommand,
           themeCommand,
+          expect.objectContaining({ name: 'agents' }),
+          expect.objectContaining({ name: 'domains' }),
+          expect.objectContaining({ name: 'orchestrate' }),
+          expect.objectContaining({ name: 'taskmaster' }),
+          expect.objectContaining({ name: 'history' }),
         ]);
+      });
+
+      it('should initialize completion service after loading commands', async () => {
+        // Pre-condition: completion service should be null
+        expect(commandService.getCompletionService()).toBeNull();
+
+        // Action
+        await commandService.loadCommands();
+
+        // Post-condition: completion service should be initialized
+        const completionService = commandService.getCompletionService();
+        expect(completionService).toBeDefined();
+        expect(completionService).not.toBeNull();
+        expect(completionService?.getCompletions).toBeDefined();
+      });
+    });
+
+    describe('getCompletionService', () => {
+      it('should return null before loading commands', () => {
+        expect(commandService.getCompletionService()).toBeNull();
+      });
+
+      it('should return completion service after loading commands', async () => {
+        await commandService.loadCommands();
+
+        const completionService = commandService.getCompletionService();
+        expect(completionService).toBeDefined();
+        expect(completionService).not.toBeNull();
+        expect(typeof completionService?.getCompletions).toBe('function');
+        expect(typeof completionService?.getAgentCompletions).toBe('function');
+        expect(typeof completionService?.getDomainCompletions).toBe('function');
+        expect(typeof completionService?.getTaskCompletions).toBe('function');
       });
     });
   });

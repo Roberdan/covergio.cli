@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Text, Box } from 'ink';
-import { ConversationTurn, AgentInstance, CollaborationPattern } from '../../../types/shared.ts';
+import { ConversationTurn, AgentInstance, CollaborationPattern } from '../../../types/shared.js';
 import { AgentStatusIndicator } from './AgentStatusIndicator.js';
 import { ConversationThread } from './ConversationThread.js';
 
