@@ -6,7 +6,7 @@ The Local RAG System is a comprehensive solution that enables users to create sp
 
 ## Architecture
 
-The system follows a modular architecture with clear separation of concerns:
+The system follows a modular architecture with clear separation of concerns, integrating seamlessly with the existing Convergio CLI monorepo structure:
 
 ```mermaid
 graph TB
@@ -16,6 +16,7 @@ graph TB
     RAGService --> VectorStore[Vector Store]
     RAGService --> AgentManager[Agent Manager]
     RAGService --> QueryEngine[Query Engine]
+    RAGService --> KnowledgeBaseManager[Knowledge Base Manager]
     
     DocProcessor --> TextExtractor[Text Extractor]
     DocProcessor --> TextChunker[Text Chunker]
@@ -24,12 +25,29 @@ graph TB
     VectorStore --> LocalDB[Local Vector DB]
     
     AgentManager --> AgentConfig[Agent Configuration]
-    AgentManager --> PromptManager[Prompt Manager]
+    AgentManager --> PersonalitySystem[Personality System]
     
     QueryEngine --> SemanticSearch[Semantic Search]
     QueryEngine --> ContextRetrieval[Context Retrieval]
     QueryEngine --> ResponseGeneration[Response Generation]
+    
+    KnowledgeBaseManager --> DocumentTracking[Document Tracking]
+    KnowledgeBaseManager --> IncrementalUpdates[Incremental Updates]
+    
+    subgraph "Convergio CLI Integration"
+        DI[Dependency Injection]
+        ErrorHandling[Error Handling]
+        Logging[Logging Infrastructure]
+        CommandSystem[Command System]
+    end
+    
+    RAGService --> DI
+    RAGService --> ErrorHandling
+    RAGService --> Logging
+    CLI --> CommandSystem
 ```
+
+**Design Rationale**: The architecture prioritizes modularity and integration with the existing Convergio CLI infrastructure. Each component has a single responsibility and communicates through well-defined interfaces, enabling independent testing and future extensibility. The integration layer ensures the RAG system follows established patterns for dependency injection, error handling, and CLI command structure.
 
 ## Components and Interfaces
 
