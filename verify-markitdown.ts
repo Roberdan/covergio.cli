@@ -110,7 +110,7 @@ console.log(test);
 export { verifyMarkItDown };
 
 // Run if called directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   verifyMarkItDown()
     .then(success => {
       process.exit(success ? 0 : 1);

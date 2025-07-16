@@ -45,6 +45,15 @@ task-master generate                                         # Update task markd
 - `.taskmaster/tasks/*.txt` - Individual task files (auto-generated from tasks.json)
 - `.env` - API keys for CLI usage
 
+### Document Processing Dependencies
+
+- `markitdown-ts` v0.0.4 - TypeScript port of Microsoft's MarkItDown library
+- `verify-markitdown-simple.js` - Simple verification script for MarkItDown installation
+- `scripts/verify-markitdown.js` - Comprehensive verification script with 10 tests
+- `verify-markitdown.ts` - TypeScript verification script
+- `src/universal/agents/MarkItDownAgent.ts` - Specialized agent for document processing
+- `src/universal/agents/ImageAltTextAgent.ts` - Agent for generating image alt-text
+
 ### Claude Code Integration Files
 
 - `CLAUDE.md` - Auto-loaded context for Claude Code (this file)
@@ -411,6 +420,64 @@ These commands make AI calls and may take up to a minute:
 - Requires a research model API key like Perplexity (`PERPLEXITY_API_KEY`) in environment
 - Provides more informed task creation and updates
 - Recommended for complex technical tasks
+
+## MarkItDown Document Processing
+
+### Library Integration
+
+The project uses `markitdown-ts` v0.0.4, a TypeScript port of Microsoft's MarkItDown library for document processing:
+
+```typescript
+import { MarkItDown } from 'markitdown-ts';
+
+const markitdown = new MarkItDown();
+const result = await markitdown.convert('document.pdf');
+console.log(result.text_content);
+```
+
+### Agent Integration
+
+**MarkItDownAgent**: Specialized agent for document processing
+- Location: `src/universal/agents/MarkItDownAgent.ts`
+- Capabilities: Convert various document formats to Markdown
+- Memory integration: Store processed documents for later reference
+
+**ImageAltTextAgent**: Generate descriptive alt-text for images
+- Location: `src/universal/agents/ImageAltTextAgent.ts`
+- Capabilities: Process images in documents and generate accessibility text
+- Integration: Works with MarkItDown for comprehensive document processing
+
+### Verification Commands
+
+Always verify MarkItDown installation before use:
+
+```bash
+# Quick verification
+node verify-markitdown-simple.js
+
+# Comprehensive verification (10 tests)
+node scripts/verify-markitdown.js
+
+# TypeScript verification
+npx tsx verify-markitdown.ts
+```
+
+### Usage in Tasks
+
+When working with document processing tasks:
+
+1. Use `task-master add-task` to create document processing tasks
+2. Specify MarkItDown agent requirements in task details
+3. Update task progress with `task-master update-subtask` when processing documents
+4. Use memory system to store processed document content
+
+### Key Features
+
+- **Document Conversion**: PDF, Word, PowerPoint, HTML to Markdown
+- **Image Processing**: Extract and process images from documents
+- **Memory Integration**: Store processed content in agent memory
+- **CLI Integration**: Direct document processing commands
+- **Agent Orchestration**: Coordinate multiple agents for complex document workflows
 
 ---
 

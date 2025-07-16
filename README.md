@@ -1,96 +1,186 @@
-# Gemini CLI
+# Convergio CLI
 
-[![Gemini CLI CI](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml)
+[![Convergio CLI CI](https://github.com/convergio/convergio-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/convergio/convergio-cli/actions/workflows/ci.yml)
 
-![Gemini CLI Screenshot](./docs/assets/gemini-screenshot.png)
+![Convergio CLI Screenshot](./docs/assets/convergio-screenshot.png)
 
-This repository contains the Gemini CLI, a command-line AI workflow tool that connects to your
-tools, understands your code and accelerates your workflows.
+This repository contains the Convergio CLI, a Universal AI Agent Orchestration Platform that transforms any conversation into specialized expert assistance through dynamic multi-agent collaboration.
 
-With the Gemini CLI you can:
+With the Convergio CLI you can:
 
-- Query and edit large codebases in and beyond Gemini's 1M token context window.
-- Generate new apps from PDFs or sketches, using Gemini's multimodal capabilities.
-- Automate operational tasks, like querying pull requests or handling complex rebases.
-- Use tools and MCP servers to connect new capabilities, including [media generation with Imagen,
-  Veo or Lyria](https://github.com/GoogleCloudPlatform/vertex-ai-creative-studio/tree/main/experiments/mcp-genmedia)
-- Ground your queries with the [Google Search](https://ai.google.dev/gemini-api/docs/grounding)
-  tool, built in to Gemini.
+- **Multi-Agent Orchestration**: Dynamically create and coordinate specialized AI agents for complex tasks
+- **Domain Expertise**: Generate agents with specific knowledge domains and capabilities on-demand
+- **Intelligent Task Decomposition**: Automatically break down complex requests using Task-Master-AI integration
+- **Memory & Context Sharing**: Enable agents to share knowledge and maintain conversation context
+- **Advanced Document Processing**: Process and analyze documents with specialized MarkItDown agents
+- **Automated Workflows**: Orchestrate multi-step processes with agent collaboration patterns
 
 ## Quickstart
 
 1. **Prerequisites:** Ensure you have [Node.js version 20](https://nodejs.org/en/download) or higher installed.
-2. **Run the CLI:** Execute the following command in your terminal:
+2. **Clone and Install:** Clone the repository and install dependencies:
 
    ```bash
-   npx https://github.com/google-gemini/gemini-cli
+   git clone https://github.com/convergio/convergio-cli
+   cd convergio-cli
+   npm install
    ```
 
-   Or install it with:
+3. **Build the CLI:**
 
    ```bash
-   npm install -g @google/gemini-cli
+   npm run build
    ```
 
-   Then, run the CLI from anywhere:
+   Then, run the CLI:
 
    ```bash
-   gemini
+   npm start
    ```
 
-3. **Pick a color theme**
-4. **Authenticate:** When prompted, sign in with your personal Google account. This will grant you up to 60 model requests per minute and 1,000 model requests per day using Gemini.
-
-You are now ready to use the Gemini CLI!
-
-### Use a Gemini API key:
-
-The Gemini API provides a free tier with [100 requests per day](https://ai.google.dev/gemini-api/docs/rate-limits#free-tier) using Gemini 2.5 Pro, control over which model you use, and access to higher rate limits (with a paid plan):
-
-1. Generate a key from [Google AI Studio](https://aistudio.google.com/apikey).
-2. Set it as an environment variable in your terminal. Replace `YOUR_API_KEY` with your generated key.
+4. **Configure AI Models:** Set up your preferred AI models and API keys:
 
    ```bash
-   export GEMINI_API_KEY="YOUR_API_KEY"
+   npm run setup
    ```
 
-3. (Optionally) Upgrade your Gemini API project to a paid plan on the API key page (will automatically unlock [Tier 1 rate limits](https://ai.google.dev/gemini-api/docs/rate-limits#tier-1))
-
-### Use a Vertex AI API key:
-
-The Vertex AI API provides a [free tier](https://cloud.google.com/vertex-ai/generative-ai/docs/start/express-mode/overview) using express mode for Gemini 2.5 Pro, control over which model you use, and access to higher rate limits with a billing account:
-
-1. Generate a key from [Google Cloud](https://cloud.google.com/vertex-ai/generative-ai/docs/start/api-keys).
-2. Set it as an environment variable in your terminal. Replace `YOUR_API_KEY` with your generated key and set GOOGLE_GENAI_USE_VERTEXAI to true
+5. **Initialize Task Management:** Set up Task-Master-AI for intelligent task orchestration:
 
    ```bash
-   export GOOGLE_API_KEY="YOUR_API_KEY"
-   export GOOGLE_GENAI_USE_VERTEXAI=true
+   npx task-master init
    ```
 
-3. (Optionally) Add a billing account on your project to get access to [higher usage limits](https://cloud.google.com/vertex-ai/generative-ai/docs/quotas)
+You are now ready to use the Convergio CLI for multi-agent AI orchestration!
 
-For other authentication methods, including Google Workspace accounts, see the [authentication](./docs/cli/authentication.md) guide.
+### Configure AI API Keys:
+
+Convergio supports multiple AI providers for maximum flexibility. Configure the providers you want to use:
+
+#### Primary Providers (recommended):
+
+**Anthropic Claude:**
+```bash
+export ANTHROPIC_API_KEY="your_anthropic_key"
+```
+Get your key from [Anthropic Console](https://console.anthropic.com/)
+
+**OpenAI GPT:**
+```bash
+export OPENAI_API_KEY="your_openai_key"
+```
+Get your key from [OpenAI Platform](https://platform.openai.com/api-keys)
+
+**Google Gemini:**
+```bash
+export GOOGLE_API_KEY="your_google_key"
+# For Vertex AI (optional):
+export GOOGLE_GENAI_USE_VERTEXAI=true
+```
+Get your key from [Google AI Studio](https://aistudio.google.com/apikey)
+
+#### Additional Providers (optional):
+
+**Perplexity (for research features):**
+```bash
+export PERPLEXITY_API_KEY="your_perplexity_key"
+```
+
+**OpenRouter (multiple models):**
+```bash
+export OPENROUTER_API_KEY="your_openrouter_key"
+```
+
+**XAI Grok:**
+```bash
+export XAI_API_KEY="your_xai_key"
+```
+
+**Mistral:**
+```bash
+export MISTRAL_API_KEY="your_mistral_key"
+```
+
+For detailed configuration and model selection, see the [authentication guide](./docs/cli/authentication.md).
+
+## Dependencies and Libraries
+
+### Core Dependencies
+
+Convergio CLI is built on several key technologies and libraries:
+
+- **Node.js 20+**: Runtime environment for the CLI and agent orchestration
+- **TypeScript**: Type-safe development and enhanced developer experience
+- **React + Ink**: Terminal UI components for interactive CLI experience
+- **Task-Master-AI**: Intelligent task decomposition and management system
+
+### Document Processing
+
+#### MarkItDown Integration
+
+Convergio CLI includes **MarkItDown** integration for advanced document processing and analysis:
+
+- **Library**: `markitdown-ts` v0.0.4 (TypeScript port of Microsoft's MarkItDown)
+- **Purpose**: Convert various document formats to Markdown for LLM processing
+- **Repository**: [microsoft/markitdown](https://github.com/microsoft/markitdown) (original Python)
+- **TypeScript Port**: [markitdown-ts](https://www.npmjs.com/package/markitdown-ts) (Node.js compatible)
+
+**Key Features:**
+- Document format conversion (HTML, PDF, Word, etc. to Markdown)
+- Image processing and analysis
+- Structured content extraction
+- LLM-optimized output formatting
+
+**Usage Examples:**
+```bash
+# Process a document with MarkItDown agent
+convergio process document.pdf
+
+# Convert multiple files to Markdown
+convergio batch-convert *.docx
+
+# Extract structured data from documents
+convergio extract-data presentation.pptx
+```
+
+**Agent Integration:**
+- **MarkItDownAgent**: Specialized agent for document processing
+- **ImageAltTextAgent**: Generate descriptive alt-text for images in documents
+- **Memory Integration**: Store processed documents in agent memory for later reference
+
+**Installation Verification:**
+To verify the MarkItDown installation is working correctly:
+```bash
+node verify-markitdown-simple.js          # Simple verification
+node scripts/verify-markitdown.js         # Comprehensive verification
+npx tsx verify-markitdown.ts              # TypeScript verification
+```
+
+### Multi-Agent Framework
+
+- **AutoGen Integration**: Microsoft AutoGen for sophisticated agent conversations
+- **Agent Factory**: Dynamic agent creation and management system
+- **Memory Engine**: Cross-agent memory sharing and context management
+- **Orchestration Engine**: Universal orchestrator for multi-agent workflows
 
 ## Examples
 
-Once the CLI is running, you can start interacting with Gemini from your shell.
+Once the CLI is running, you can start interacting with Convergio's multi-agent system from your shell.
 
 You can start a project from a new directory:
 
 ```sh
 cd new-project/
-gemini
-> Write me a Gemini Discord bot that answers questions using a FAQ.md file I will provide
+convergio
+> Create a Discord bot using multiple specialized agents - one for FAQ processing, one for user interaction, and one for monitoring
 ```
 
 Or work with an existing project:
 
 ```sh
-git clone https://github.com/google-gemini/gemini-cli
-cd gemini-cli
-gemini
-> Give me a summary of all of the changes that went in yesterday
+git clone https://github.com/convergio/convergio-cli
+cd convergio-cli
+convergio
+> Orchestrate agents to analyze yesterday's changes: one for git analysis, one for code review, and one for impact assessment
 ```
 
 ### Next steps
@@ -108,48 +198,60 @@ having issues.
 
 ## Popular tasks
 
-### Explore a new codebase
+### Multi-Agent Codebase Analysis
 
-Start by `cd`ing into an existing or newly-cloned repository and running `gemini`.
+Start by `cd`ing into an existing or newly-cloned repository and running `convergio`.
 
 ```text
-> Describe the main pieces of this system's architecture.
+> Deploy three agents to analyze this system: one for architecture analysis, one for security review, and one for performance assessment.
 ```
 
 ```text
-> What security mechanisms are in place?
+> Create a documentation agent and a code analysis agent to work together on documenting this API.
 ```
 
-### Work with your existing code
+### Collaborative Development
 
 ```text
-> Implement a first draft for GitHub issue #123.
-```
-
-```text
-> Help me migrate this codebase to the latest version of Java. Start with a plan.
-```
-
-### Automate your workflows
-
-Use MCP servers to integrate your local system tools with your enterprise collaboration suite.
-
-```text
-> Make me a slide deck showing the git history from the last 7 days, grouped by feature and team member.
+> Orchestrate agents to implement GitHub issue #123: one for planning, one for coding, and one for testing.
 ```
 
 ```text
-> Make a full-screen web app for a wall display to show our most interacted-with GitHub issues.
+> Deploy a migration planning agent and execution agent to help migrate this codebase to the latest version of Java.
 ```
 
-### Interact with your system
+### Document Processing Workflows
+
+Leverage MarkItDown integration for advanced document processing:
 
 ```text
-> Convert all the images in this directory to png, and rename them to use dates from the exif data.
+> Use MarkItDown agents to process all PDFs in this directory and create a unified knowledge base.
 ```
 
 ```text
-> Organize my PDF invoices by month of expenditure.
+> Deploy an ImageAltText agent to generate descriptive alt-text for all images in my documentation.
+```
+
+### Enterprise Automation
+
+Use multi-agent orchestration with MCP servers for complex workflows:
+
+```text
+> Create a presentation agent, data analysis agent, and git history agent to make a slide deck showing the last 7 days of development.
+```
+
+```text
+> Deploy monitoring agents to create a full-screen web app displaying our most interacted-with GitHub issues with real-time updates.
+```
+
+### System Integration
+
+```text
+> Coordinate multiple agents to convert all images in this directory to png, with one agent handling conversion and another managing file organization by date.
+```
+
+```text
+> Use document processing agents to organize my PDF invoices by month of expenditure, with automatic data extraction and categorization.
 ```
 
 ### Uninstall
