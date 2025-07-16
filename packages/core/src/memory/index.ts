@@ -22,6 +22,9 @@ export * from './vector/index.js';
 // Cross-agent memory sharing system
 export * from './sharing/index.js';
 
+// Memory optimization, persistence, and visualization tools
+export * from './optimization/index.js';
+
 // Core implementations
 export { AgentMemoryEngine } from './AgentMemoryEngine.js';
 export { DefaultRelevanceScorer } from './RelevanceScorer.js';

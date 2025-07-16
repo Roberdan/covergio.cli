@@ -134,6 +134,10 @@ export interface MemoryItem {
   metadata: MemoryMetadata;
   /** Current relevance score (computed) */
   currentRelevance?: number;
+  /** Related memory IDs */
+  relationships?: string[];
+  /** Vector embeddings */
+  embeddings?: number[];
 }
 
 /**
