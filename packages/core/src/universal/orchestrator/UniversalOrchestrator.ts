@@ -7,6 +7,7 @@
 import { BaseOrchestrator } from './BaseOrchestrator.js';
 import { AgentInstance, AgentCapability } from '../types/common.js';
 import { MarkItDownAgent } from '../agents/MarkItDownAgent.js';
+import { ImageAltTextAgent } from '../agents/ImageAltTextAgent.js';
 import { AgentFactory } from '../agents/AgentFactory.js';
 import { AgentConfig } from '../agents/types.js';
 
@@ -31,6 +32,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
     await this.initializeTaskMasterAgent();
     await this.initializeAnalysisAgent();
     await this.initializeMarkdownAgent();
+    await this.initializeImageAltTextAgent();
   }
 
   private async initializeGeminiAgent(): Promise<void> {
@@ -313,6 +315,75 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   }
 
   /**
+   * Initialize ImageAltText agent for image accessibility enhancement
+   */
+  private async initializeImageAltTextAgent(): Promise<void> {
+    const imageAltTextCapabilities: AgentCapability[] = [
+      {
+        name: 'image-analysis',
+        version: '1.0.0',
+        description: 'Analyze images and extract visual information',
+        supportedOperations: ['analyze', 'extract', 'describe'],
+        requiredTools: ['image-processor', 'alt-text-generator'],
+        performance: {
+          latency: 800,
+          throughput: 80,
+          accuracy: 0.88,
+        },
+      },
+      {
+        name: 'alt-text-generation',
+        version: '1.0.0',
+        description: 'Generate descriptive alt-text for images',
+        supportedOperations: ['generate', 'enhance', 'validate'],
+        requiredTools: ['alt-text-generator', 'accessibility-checker'],
+        performance: {
+          latency: 600,
+          throughput: 100,
+          accuracy: 0.90,
+        },
+      },
+      {
+        name: 'accessibility-enhancement',
+        version: '1.0.0',
+        description: 'Enhance document accessibility through image descriptions',
+        supportedOperations: ['enhance', 'validate', 'audit'],
+        requiredTools: ['accessibility-checker', 'document-processor'],
+        performance: {
+          latency: 1000,
+          throughput: 60,
+          accuracy: 0.92,
+        },
+      },
+    ];
+
+    const imageAltTextAgent: AgentInstance = {
+      id: 'image-alt-text-specialist',
+      type: 'image-alt-text-specialist',
+      capabilities: imageAltTextCapabilities,
+      status: 'idle',
+      configuration: {
+        detailLevel: 'detailed',
+        maxDescriptionLength: 150,
+        includeImageContext: true,
+        processingTimeout: 30000,
+      },
+      performance: {
+        successRate: 0.90,
+        averageResponseTime: 800,
+        tasksCompleted: 0,
+      },
+    };
+
+    this.agents.set(imageAltTextAgent.id, imageAltTextAgent);
+
+    // Register the ImageAltText agent with the factory
+    this.agentFactory.registerAgentType('image-alt-text-specialist', async (config: AgentConfig) => {
+      return new ImageAltTextAgent(config);
+    });
+  }
+
+  /**
    * Route markdown-related requests to the MarkItDown agent
    */
   private isMarkdownRequest(request: any): boolean {
@@ -327,9 +398,103 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   }
 
   /**
-   * Enhanced orchestrate method with markdown routing
+   * Route image-related requests to the ImageAltText agent
+   */
+  private isImageProcessingRequest(request: any): boolean {
+    const imageKeywords = [
+      'image', 'img', 'alt text', 'alt-text', 'alternative text',
+      'accessibility', 'screen reader', 'describe image', 'image description',
+      'generate alt text', 'analyze image', 'image analysis', 'visual description',
+      'enhance accessibility', 'accessibility audit', 'image accessibility'
+    ];
+
+    const input = request.userInput?.toLowerCase() || '';
+    
+    // Check for image-related keywords
+    const hasImageKeywords = imageKeywords.some(keyword => input.includes(keyword));
+    
+    // Check for markdown image syntax
+    const hasImageSyntax = input.includes('![') || input.includes('<img');
+    
+    // Check for common image file extensions
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp'];
+    const hasImageExtension = imageExtensions.some(ext => input.includes(ext));
+    
+    return hasImageKeywords || hasImageSyntax || hasImageExtension;
+  }
+
+  /**
+   * Enhanced orchestrate method with markdown and image processing routing
    */
   async orchestrate(request: any): Promise<any> {
+    // Check if this is an image processing request
+    if (this.isImageProcessingRequest(request)) {
+      const imageAgent = this.agents.get('image-alt-text-specialist');
+      if (imageAgent && imageAgent.status === 'idle') {
+        // Create agent instance for the request
+        const agentConfig: AgentConfig = {
+          id: `image-alt-text-${Date.now()}`,
+          domain: 'document-processing',
+          role: 'image-accessibility-specialist',
+          capabilities: ['image-analysis', 'alt-text-generation', 'accessibility-enhancement'],
+          tools: ['analyzeImages', 'generateAltText', 'processMarkdown', 'enhanceAccessibility']
+        };
+
+        try {
+          const agent = await this.agentFactory.createAgent(agentConfig);
+          
+          // Update agent status
+          imageAgent.status = 'busy';
+          
+          // Process the request
+          const response = await (agent as any).execute({
+            input: request.userInput,
+            context: {
+              sessionId: request.sessionId || 'orchestrator-session',
+              executionId: request.id,
+              timestamp: new Date(),
+              environment: {}
+            }
+          });
+
+          // Update agent status back to idle
+          imageAgent.status = 'idle';
+          imageAgent.performance.tasksCompleted++;
+
+          return {
+            id: this.generateId(),
+            requestId: request.id,
+            agents: [imageAgent],
+            workflow: {
+              id: this.generateId(),
+              name: 'Image Alt-Text Processing Workflow',
+              description: 'Process images to generate accessible alt-text descriptions',
+              steps: [{
+                id: '1',
+                name: 'Process Images',
+                status: 'completed',
+                output: response
+              }],
+              estimatedTotalDuration: 1000,
+              priority: 'medium',
+              metadata: { agentType: 'image-alt-text-specialist' }
+            },
+            status: 'completed',
+            metrics: {
+              startTime: new Date(),
+              agentsUsed: 1,
+              stepsCompleted: 1,
+            },
+            result: response
+          };
+        } catch (error) {
+          imageAgent.status = 'idle';
+          console.error('Image alt-text agent processing failed:', error);
+          // Fall back to default orchestration
+        }
+      }
+    }
+
     // Check if this is a markdown-related request
     if (this.isMarkdownRequest(request)) {
       const markdownAgent = this.agents.get('markdown-specialist');

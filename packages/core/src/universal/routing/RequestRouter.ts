@@ -220,7 +220,8 @@ export class RequestRouter implements IRequestRouter {
     // Check if handler has capabilities that suggest it can handle complex tasks
     const complexCapabilities = [
       'code-generation', 'analysis', 'orchestration', 'workflow-management',
-      'multi-step', 'reasoning', 'planning'
+      'multi-step', 'reasoning', 'planning', 'image-analysis', 'alt-text-generation',
+      'accessibility-enhancement', 'document-processing'
     ];
     
     const hasComplexCapabilities = capabilities.some(cap => 

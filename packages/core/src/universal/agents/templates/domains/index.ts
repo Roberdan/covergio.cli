@@ -37,6 +37,7 @@ import { CreativeAssistantAgent, CreativeAssistantTemplate } from './CreativeAss
 import { TechnicalSupportAgent, TechnicalSupportTemplate } from './TechnicalSupportAgent.js';
 import { DomainAgentTemplate } from '../AgentTemplateSystem.js';
 import { IAgent, AgentConfig } from '../../types.js';
+import { ImageAltTextAgent } from '../../ImageAltTextAgent.js';
 
 /**
  * Domain agent class constructor type
@@ -50,7 +51,8 @@ export const DOMAIN_AGENT_REGISTRY: Map<string, DomainAgentConstructor> = new Ma
   ['customer-service:support', CustomerServiceAgent as DomainAgentConstructor],
   ['data-analysis:analyst', DataAnalysisAgent as DomainAgentConstructor],
   ['creative:assistant', CreativeAssistantAgent as DomainAgentConstructor],
-  ['technical-support:specialist', TechnicalSupportAgent as DomainAgentConstructor]
+  ['technical-support:specialist', TechnicalSupportAgent as DomainAgentConstructor],
+  ['document-processing:image-alt-text', ImageAltTextAgent as DomainAgentConstructor]
 ]);
 
 /**
@@ -86,6 +88,11 @@ export const DOMAIN_CATEGORIES = {
     name: 'Technical Support',
     description: 'Agents specialized in technical troubleshooting and system support',
     agents: ['technical-support:specialist']
+  },
+  DOCUMENT_PROCESSING: {
+    name: 'Document Processing',
+    description: 'Agents specialized in document analysis, processing, and accessibility enhancement',
+    agents: ['document-processing:image-alt-text']
   }
 } as const;
 

@@ -43,6 +43,9 @@ export { BaseAgent, SimpleAgentMemory } from './BaseAgent.js';
 // MarkItDown agent implementation
 export { MarkItDownAgent } from './MarkItDownAgent.js';
 
+// ImageAltText agent implementation
+export { ImageAltTextAgent, type ImageAltTextConfig } from './ImageAltTextAgent.js';
+
 // Integrated personality and capability systems
 export type {
   IPersonality,
