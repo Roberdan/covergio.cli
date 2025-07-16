@@ -118,7 +118,8 @@ export async function main() {
     process.exit(1);
   }
 
-  if (config.getListExtensions()) {
+  // Use argv.listExtensions directly instead of config.getListExtensions() to avoid bundling issues
+  if (argv.listExtensions) {
     console.log('Installed extensions:');
     for (const extension of extensions) {
       console.log(`- ${extension.config.name}`);
