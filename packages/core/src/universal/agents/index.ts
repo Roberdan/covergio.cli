@@ -40,6 +40,9 @@ export type { FactoryEvents } from './AgentFactory.js';
 // Base agent implementation
 export { BaseAgent, SimpleAgentMemory } from './BaseAgent.js';
 
+// MarkItDown agent implementation
+export { MarkItDownAgent } from './MarkItDownAgent.js';
+
 // Integrated personality and capability systems
 export type {
   IPersonality,

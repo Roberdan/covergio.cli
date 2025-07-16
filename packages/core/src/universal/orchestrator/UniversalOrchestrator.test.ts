@@ -11,6 +11,8 @@ import { IRequestAnalyzer, IRequestRouter } from '../interfaces/IRequestHandler.
 import { IWorkflowManager } from '../interfaces/IWorkflowManager.js';
 import { IEventSystem } from '../interfaces/IEventSystem.js';
 import { AgentInstance } from '../types/common.js';
+import { AgentFactory } from '../agents/AgentFactory.js';
+import { MarkItDownAgent } from '../agents/MarkItDownAgent.js';
 
 // Mock implementations
 class MockRequestAnalyzer implements IRequestAnalyzer {
@@ -207,6 +209,7 @@ describe('UniversalOrchestrator', () => {
       expect(agentTypes).toContain('gemini');
       expect(agentTypes).toContain('task-master');
       expect(agentTypes).toContain('analysis');
+      expect(agentTypes).toContain('markdown-specialist');
     });
 
     it('should throw error if already initialized', async () => {
@@ -366,6 +369,234 @@ describe('UniversalOrchestrator', () => {
 
     it('should shutdown gracefully', async () => {
       await expect(orchestrator.shutdown()).resolves.not.toThrow();
+    });
+  });
+
+  describe('MarkItDown Agent Integration', () => {
+    let agentFactory: AgentFactory;
+
+    beforeEach(async () => {
+      await orchestrator.initialize({});
+      agentFactory = (orchestrator as any).agentFactory;
+    });
+
+    it('should initialize markdown agent on startup', async () => {
+      const agents = await orchestrator.getAvailableAgents();
+      const markdownAgent = agents.find(agent => agent.id === 'markdown-specialist');
+      
+      expect(markdownAgent).toBeDefined();
+      expect(markdownAgent?.type).toBe('markdown-specialist');
+      expect(markdownAgent?.capabilities).toHaveLength(3);
+      expect(markdownAgent?.capabilities.map(c => c.name)).toEqual([
+        'markdown-parsing',
+        'document-analysis',
+        'format-conversion'
+      ]);
+    });
+
+    it('should register MarkItDown agent with factory', async () => {
+      const availableTypes = agentFactory.getAvailableTypes();
+      expect(availableTypes).toContain('markdown-specialist');
+    });
+
+    it('should detect markdown requests correctly', async () => {
+      const isMarkdownRequest = (orchestrator as any).isMarkdownRequest.bind(orchestrator);
+      
+      const markdownRequests = [
+        { userInput: 'Parse this markdown content' },
+        { userInput: 'Generate table of contents for md file' },
+        { userInput: 'Convert markdown to HTML' },
+        { userInput: 'Extract headings from document' },
+        { userInput: 'MarkItDown processing' },
+        { userInput: 'analyze document structure' },
+      ];
+
+      const nonMarkdownRequests = [
+        { userInput: 'What is the weather today?' },
+        { userInput: 'Write a Python script' },
+        { userInput: 'Explain quantum computing' },
+        { userInput: 'Create a React component' },
+      ];
+
+      for (const request of markdownRequests) {
+        expect(isMarkdownRequest(request)).toBe(true);
+      }
+
+      for (const request of nonMarkdownRequests) {
+        expect(isMarkdownRequest(request)).toBe(false);
+      }
+    });
+
+    it('should route markdown requests to MarkItDown agent', async () => {
+      const markdownRequest = {
+        id: 'test-markdown-request',
+        userInput: 'Parse this markdown: # Hello World\\n\\nThis is a test.',
+        sessionContext: {
+          sessionId: 'test-session',
+          workspaceRoot: '/test',
+          timestamp: new Date(),
+          metadata: {},
+        },
+        timestamp: new Date(),
+      };
+
+      // Mock agent creation
+      const mockAgent = {
+        processRequest: vi.fn().mockResolvedValue({
+          success: true,
+          result: {
+            content: 'Parsed markdown content',
+            headings: ['Hello World'],
+            structure: { level1: 1, level2: 0 },
+          },
+          tools: ['parseMarkdown'],
+        }),
+      };
+
+      vi.spyOn(agentFactory, 'createAgent').mockResolvedValue(mockAgent as any);
+
+      const response = await orchestrator.orchestrate(markdownRequest);
+
+      expect(response.agents).toHaveLength(1);
+      expect(response.agents[0].id).toBe('markdown-specialist');
+      expect(response.workflow.name).toBe('Markdown Processing Workflow');
+      expect(response.status).toBe('completed');
+      expect(mockAgent.processRequest).toHaveBeenCalledWith({
+        id: 'test-markdown-request',
+        content: 'Parse this markdown: # Hello World\\n\\nThis is a test.',
+        type: 'markdown-processing',
+        timestamp: expect.any(Date),
+      });
+    });
+
+    it('should handle agent busy state correctly', async () => {
+      const markdownRequest = {
+        id: 'test-request',
+        userInput: 'Parse markdown content',
+        sessionContext: {
+          sessionId: 'test-session',
+          workspaceRoot: '/test',
+          timestamp: new Date(),
+          metadata: {},
+        },
+        timestamp: new Date(),
+      };
+
+      // Set markdown agent to busy
+      await orchestrator.updateAgentStatus('markdown-specialist', 'busy');
+
+      const mockAgent = {
+        processRequest: vi.fn().mockResolvedValue({
+          success: true,
+          result: 'Fallback processed',
+        }),
+      };
+
+      vi.spyOn(agentFactory, 'createAgent').mockResolvedValue(mockAgent as any);
+
+      // Mock the super.orchestrate method for fallback
+      const superOrchestrate = vi.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(orchestrator)), 'orchestrate');
+      superOrchestrate.mockResolvedValue({
+        id: 'fallback-response',
+        status: 'completed',
+        result: 'Fallback processed',
+      });
+
+      const response = await orchestrator.orchestrate(markdownRequest);
+
+      expect(superOrchestrate).toHaveBeenCalledWith(markdownRequest);
+      expect(response.id).toBe('fallback-response');
+    });
+
+    it('should fall back to default orchestration when markdown agent fails', async () => {
+      const markdownRequest = {
+        id: 'test-request',
+        userInput: 'Parse this markdown content',
+        sessionContext: {
+          sessionId: 'test-session',
+          workspaceRoot: '/test',
+          timestamp: new Date(),
+          metadata: {},
+        },
+        timestamp: new Date(),
+      };
+
+      // Mock agent creation failure
+      vi.spyOn(agentFactory, 'createAgent').mockRejectedValue(new Error('Agent creation failed'));
+      
+      // Mock the super.orchestrate method
+      const superOrchestrate = vi.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(orchestrator)), 'orchestrate');
+      superOrchestrate.mockResolvedValue({
+        id: 'fallback-response',
+        status: 'completed',
+        result: 'Fallback processed',
+      });
+
+      const response = await orchestrator.orchestrate(markdownRequest);
+
+      expect(superOrchestrate).toHaveBeenCalledWith(markdownRequest);
+      expect(response.id).toBe('fallback-response');
+    });
+
+    it('should handle agent capabilities correctly', async () => {
+      const markdownAgents = orchestrator.getAgentsByCapability('markdown-parsing');
+      expect(markdownAgents).toHaveLength(1);
+      expect(markdownAgents[0].id).toBe('markdown-specialist');
+
+      const documentAnalysisAgents = orchestrator.getAgentsByCapability('document-analysis');
+      expect(documentAnalysisAgents).toHaveLength(1);
+      expect(documentAnalysisAgents[0].id).toBe('markdown-specialist');
+
+      const formatConversionAgents = orchestrator.getAgentsByCapability('format-conversion');
+      expect(formatConversionAgents).toHaveLength(1);
+      expect(formatConversionAgents[0].id).toBe('markdown-specialist');
+    });
+
+    it('should update agent performance metrics', async () => {
+      const markdownRequest = {
+        id: 'test-request',
+        userInput: 'Parse markdown content',
+        sessionContext: {
+          sessionId: 'test-session',
+          workspaceRoot: '/test',
+          timestamp: new Date(),
+          metadata: {},
+        },
+        timestamp: new Date(),
+      };
+
+      const mockAgent = {
+        processRequest: vi.fn().mockResolvedValue({
+          success: true,
+          result: 'Processed',
+        }),
+      };
+
+      vi.spyOn(agentFactory, 'createAgent').mockResolvedValue(mockAgent as any);
+
+      const initialAgent = orchestrator.getAgent('markdown-specialist');
+      const initialTasksCompleted = initialAgent?.performance.tasksCompleted || 0;
+
+      await orchestrator.orchestrate(markdownRequest);
+
+      const updatedAgent = orchestrator.getAgent('markdown-specialist');
+      expect(updatedAgent?.performance.tasksCompleted).toBe(initialTasksCompleted + 1);
+      expect(updatedAgent?.status).toBe('idle');
+    });
+
+    it('should create MarkItDown agent through factory', async () => {
+      const config = {
+        id: 'test-markdown-agent',
+        domain: 'document-processing',
+        role: 'markdown-specialist',
+        capabilities: ['markdown-parsing'],
+        tools: ['parseMarkdown'],
+      };
+
+      const agent = await agentFactory.createAgent(config);
+      
+      expect(agent).toBeInstanceOf(MarkItDownAgent);
+      expect(agent.id).toBe('test-markdown-agent');
     });
   });
 });

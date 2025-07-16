@@ -6,14 +6,31 @@
 
 import { BaseOrchestrator } from './BaseOrchestrator.js';
 import { AgentInstance, AgentCapability } from '../types/common.js';
+import { MarkItDownAgent } from '../agents/MarkItDownAgent.js';
+import { AgentFactory } from '../agents/AgentFactory.js';
+import { AgentConfig } from '../agents/types.js';
 
 export class UniversalOrchestrator extends BaseOrchestrator {
+  private agentFactory: AgentFactory;
+  
+  constructor(
+    config: any,
+    requestAnalyzer: any,
+    requestRouter: any,
+    workflowManager: any,
+    eventSystem: any,
+    agentFactory?: AgentFactory
+  ) {
+    super(config, requestAnalyzer, requestRouter, workflowManager, eventSystem);
+    this.agentFactory = agentFactory || new AgentFactory();
+  }
   
   protected async initializeAgents(): Promise<void> {
     // Initialize default agents
     await this.initializeGeminiAgent();
     await this.initializeTaskMasterAgent();
     await this.initializeAnalysisAgent();
+    await this.initializeMarkdownAgent();
   }
 
   private async initializeGeminiAgent(): Promise<void> {
@@ -225,5 +242,160 @@ export class UniversalOrchestrator extends BaseOrchestrator {
    */
   getIdleAgents(): AgentInstance[] {
     return Array.from(this.agents.values()).filter(agent => agent.status === 'idle');
+  }
+
+  /**
+   * Initialize MarkItDown agent for markdown processing
+   */
+  private async initializeMarkdownAgent(): Promise<void> {
+    const markdownCapabilities: AgentCapability[] = [
+      {
+        name: 'markdown-parsing',
+        version: '1.0.0',
+        description: 'Parse and process markdown content',
+        supportedOperations: ['parse', 'extract', 'convert'],
+        requiredTools: ['markitdown-processor'],
+        performance: {
+          latency: 500,
+          throughput: 150,
+          accuracy: 0.92,
+        },
+      },
+      {
+        name: 'document-analysis',
+        version: '1.0.0',
+        description: 'Analyze document structure and content',
+        supportedOperations: ['analyze', 'extract-headings', 'table-of-contents'],
+        requiredTools: ['markitdown-processor'],
+        performance: {
+          latency: 300,
+          throughput: 200,
+          accuracy: 0.90,
+        },
+      },
+      {
+        name: 'format-conversion',
+        version: '1.0.0',
+        description: 'Convert between different document formats',
+        supportedOperations: ['convert-to-html', 'convert-to-pdf', 'convert-format'],
+        requiredTools: ['markitdown-processor'],
+        performance: {
+          latency: 800,
+          throughput: 100,
+          accuracy: 0.88,
+        },
+      },
+    ];
+
+    const markdownAgent: AgentInstance = {
+      id: 'markdown-specialist',
+      type: 'markdown-specialist',
+      capabilities: markdownCapabilities,
+      status: 'idle',
+      configuration: {
+        enableFallback: true,
+        processingTimeout: 30000,
+        maxFileSize: 10485760, // 10MB
+      },
+      performance: {
+        successRate: 0.92,
+        averageResponseTime: 600,
+        tasksCompleted: 0,
+      },
+    };
+
+    this.agents.set(markdownAgent.id, markdownAgent);
+
+    // Register the MarkItDown agent with the factory
+    this.agentFactory.registerAgentType('markdown-specialist', async (config: AgentConfig) => {
+      return new MarkItDownAgent(config);
+    });
+  }
+
+  /**
+   * Route markdown-related requests to the MarkItDown agent
+   */
+  private isMarkdownRequest(request: any): boolean {
+    const markdownKeywords = [
+      'markdown', 'md', 'parse', 'heading', 'table of contents', 'toc',
+      'convert to html', 'html', 'document structure', 'extract links',
+      'analyze document', 'format conversion', 'markitdown'
+    ];
+
+    const input = request.userInput?.toLowerCase() || '';
+    return markdownKeywords.some(keyword => input.includes(keyword));
+  }
+
+  /**
+   * Enhanced orchestrate method with markdown routing
+   */
+  async orchestrate(request: any): Promise<any> {
+    // Check if this is a markdown-related request
+    if (this.isMarkdownRequest(request)) {
+      const markdownAgent = this.agents.get('markdown-specialist');
+      if (markdownAgent && markdownAgent.status === 'idle') {
+        // Create agent instance for the request
+        const agentConfig: AgentConfig = {
+          id: `markdown-${Date.now()}`,
+          domain: 'document-processing',
+          role: 'markdown-specialist',
+          capabilities: ['markdown-parsing', 'document-analysis', 'format-conversion'],
+          tools: ['parseMarkdown', 'extractHeadings', 'generateTableOfContents', 'convertToHTML']
+        };
+
+        try {
+          const agent = await this.agentFactory.createAgent(agentConfig);
+          
+          // Update agent status
+          markdownAgent.status = 'busy';
+          
+          // Process the request
+          const response = await (agent as any).processRequest({
+            id: request.id,
+            content: request.userInput,
+            type: 'markdown-processing',
+            timestamp: new Date()
+          });
+
+          // Update agent status back to idle
+          markdownAgent.status = 'idle';
+          markdownAgent.performance.tasksCompleted++;
+
+          return {
+            id: this.generateId(),
+            requestId: request.id,
+            agents: [markdownAgent],
+            workflow: {
+              id: this.generateId(),
+              name: 'Markdown Processing Workflow',
+              description: 'Process markdown content with specialized agent',
+              steps: [{
+                id: '1',
+                name: 'Process Markdown',
+                status: 'completed',
+                output: response
+              }],
+              estimatedTotalDuration: 1000,
+              priority: 'medium',
+              metadata: { agentType: 'markdown-specialist' }
+            },
+            status: 'completed',
+            metrics: {
+              startTime: new Date(),
+              agentsUsed: 1,
+              stepsCompleted: 1,
+            },
+            result: response
+          };
+        } catch (error) {
+          markdownAgent.status = 'idle';
+          console.error('Markdown agent processing failed:', error);
+          // Fall back to default orchestration
+        }
+      }
+    }
+
+    // Fall back to default orchestration for non-markdown requests
+    return super.orchestrate(request);
   }
 }

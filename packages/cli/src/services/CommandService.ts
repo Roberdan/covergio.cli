@@ -15,6 +15,7 @@ import { domainsCommand } from '../ui/commands/domainsCommand.js';
 import { orchestrateCommand } from '../ui/commands/orchestrateCommand.js';
 import { taskmasterCommand } from '../ui/commands/taskmasterCommand.js';
 import { historyCommand } from '../ui/commands/historyCommand.js';
+import { markdownCommand } from '../ui/commands/markdownCommand.js';
 import { createCompletionService } from '../ui/commands/completionService.js';
 
 const loadBuiltInCommands = async (): Promise<SlashCommand[]> => {
@@ -29,6 +30,7 @@ const loadBuiltInCommands = async (): Promise<SlashCommand[]> => {
     orchestrateCommand,
     taskmasterCommand,
     historyCommand,
+    markdownCommand,
   ];
 
   // Initialize auto-completion for enhanced commands

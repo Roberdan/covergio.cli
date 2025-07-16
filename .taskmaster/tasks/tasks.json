@@ -307,7 +307,7 @@
         "dependencies": [
           16
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -503,7 +503,7 @@
         "description": "Implement a specialized MarkItDown agent that leverages the Microsoft MarkItDown library for advanced Markdown document analysis and manipulation, integrating it into the multi-agent system.",
         "details": "1. Install the MarkItDown library as a dependency following the official repository instructions:\n```bash\nnpm install @microsoft/markitdown\n```\n\n2. Create a new agent definition for MarkItDown:\n```typescript\nconst markItDownAgentDefinition: AgentDefinition = {\n  domain: 'document-processing',\n  role: 'markdown-specialist',\n  capabilities: [\n    'markdown-parsing',\n    'document-analysis',\n    'content-extraction',\n    'structure-manipulation',\n    'format-conversion'\n  ],\n  personalityTraits: ['analytical', 'precise', 'helpful', 'technical'],\n  tools: [\n    {\n      name: 'parseMarkdown',\n      description: 'Parse markdown content into structured format',\n      parameters: {\n        content: 'string'\n      }\n    },\n    {\n      name: 'extractHeadings',\n      description: 'Extract all headings from markdown document',\n      parameters: {\n        content: 'string'\n      }\n    },\n    {\n      name: 'generateTableOfContents',\n      description: 'Create a table of contents from markdown document',\n      parameters: {\n        content: 'string',\n        maxDepth: 'number'\n      }\n    },\n    {\n      name: 'convertToHTML',\n      description: 'Convert markdown to HTML',\n      parameters: {\n        content: 'string'\n      }\n    }\n  ]\n};\n```\n\n3. Implement the MarkItDown agent class:\n```typescript\nimport * as markitdown from '@microsoft/markitdown';\n\nclass MarkItDownAgent implements AgentInstance {\n  id: string;\n  definition: AgentDefinition;\n  state: AgentState;\n  memory: AgentMemory;\n  \n  constructor(id: string, memory: AgentMemory) {\n    this.id = id;\n    this.definition = markItDownAgentDefinition;\n    this.state = { status: 'ready' };\n    this.memory = memory;\n  }\n  \n  async execute(input: string): Promise<AgentResponse> {\n    // Parse the input to determine which MarkItDown functionality to use\n    const command = this.parseCommand(input);\n    \n    try {\n      switch (command.action) {\n        case 'parseMarkdown':\n          const parsed = markitdown.parse(command.content);\n          return this.formatResponse(parsed);\n          \n        case 'extractHeadings':\n          const document = markitdown.parse(command.content);\n          const headings = document.filter(node => \n            node.type === 'heading'\n          );\n          return this.formatResponse(headings);\n          \n        case 'generateTableOfContents':\n          const doc = markitdown.parse(command.content);\n          const toc = markitdown.generateTableOfContents(doc, command.maxDepth || 3);\n          return this.formatResponse(toc);\n          \n        case 'convertToHTML':\n          const html = markitdown.renderHTML(command.content);\n          return this.formatResponse(html);\n          \n        default:\n          return {\n            type: 'text',\n            content: 'I can help with Markdown processing. Please specify an action like parseMarkdown, extractHeadings, generateTableOfContents, or convertToHTML.',\n            metadata: { agentId: this.id }\n          };\n      }\n    } catch (error) {\n      return {\n        type: 'error',\n        content: `Error processing markdown: ${error.message}`,\n        metadata: { agentId: this.id, error: error.toString() }\n      };\n    }\n  }\n  \n  private parseCommand(input: string): any {\n    // Implementation to parse user input into structured commands\n    // This would extract the action and parameters from natural language\n  }\n  \n  private formatResponse(data: any): AgentResponse {\n    return {\n      type: 'markdown',\n      content: JSON.stringify(data, null, 2),\n      metadata: { \n        agentId: this.id,\n        timestamp: new Date().toISOString()\n      }\n    };\n  }\n}\n```\n\n4. Register the MarkItDown agent with the AgentFactory:\n```typescript\n// In the AgentFactory implementation\nregisterAgent('markdown-specialist', (id: string, memory: AgentMemory) => {\n  return new MarkItDownAgent(id, memory);\n});\n```\n\n5. Update the Universal Orchestrator to recognize markdown-related tasks and route them to the MarkItDown agent:\n```typescript\n// In the request routing logic\nif (analysis.domains.includes('document-processing') && \n    input.toLowerCase().includes('markdown')) {\n  const markdownAgent = agentFactory.create('markdown-specialist');\n  workflow.addAgent(markdownAgent);\n}\n```\n\n6. Implement specialized memory handling for markdown documents:\n```typescript\n// Add document storage capabilities to the memory system\ninterface DocumentMemoryItem extends MemoryItem {\n  documentType: 'markdown' | 'html' | 'other';\n  documentStructure?: any;\n}\n```\n\n7. Create user-friendly command aliases in the CLI interface:\n```typescript\n// In the command processor\nregisterCommand('markdown', async (args) => {\n  const subcommand = args[0];\n  const content = args.slice(1).join(' ');\n  \n  return orchestrator.execute({\n    userInput: `Use MarkItDown to ${subcommand} the following content: ${content}`,\n    sessionContext: currentSession\n  });\n});\n```",
         "testStrategy": "1. Unit test the MarkItDown agent implementation:\n   - Test each method of the MarkItDownAgent class with various markdown inputs\n   - Verify correct parsing of different markdown structures\n   - Test error handling with malformed markdown\n   - Ensure all advertised capabilities work as expected\n\n2. Integration tests with the agent factory:\n   - Verify the agent can be created dynamically\n   - Test that the agent receives the correct definition and tools\n   - Ensure the agent properly integrates with the memory system\n\n3. End-to-end testing with the orchestrator:\n   - Test natural language requests that should route to the MarkItDown agent\n   - Verify complex markdown processing workflows\n   - Test collaboration scenarios where MarkItDown agent works with other agents\n\n4. Performance testing:\n   - Benchmark processing time for large markdown documents\n   - Test memory usage during complex operations\n   - Verify the agent can handle concurrent requests\n\n5. CLI interface testing:\n   - Test all markdown-related commands\n   - Verify output formatting is correct and readable\n   - Test with various terminal sizes and environments\n\n6. Dependency verification:\n   - Ensure the MarkItDown library is correctly installed and accessible\n   - Test with different versions of the library to ensure compatibility\n   - Verify all required dependencies are properly loaded\n\n7. Documentation testing:\n   - Verify help text and examples for markdown commands\n   - Test that error messages are clear and actionable\n   - Ensure all capabilities are properly documented",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           16,
           20,
@@ -517,7 +517,7 @@
             "description": "Install the Microsoft MarkItDown library and set up the initial project dependencies",
             "dependencies": [],
             "details": "Install the MarkItDown library using npm as specified in the requirements. Verify the installation by creating a simple test script that imports the library. Document any version-specific considerations or compatibility issues that might arise during installation.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create a simple test script that imports the library and verifies basic functionality like parsing a simple markdown string."
           },
           {
@@ -528,7 +528,7 @@
               1
             ],
             "details": "Implement the MarkItDownAgent class as outlined in the requirements, ensuring it properly handles all the specified markdown operations (parseMarkdown, extractHeadings, generateTableOfContents, convertToHTML). Complete the parseCommand method to interpret user instructions and extract relevant parameters. Add error handling for all operations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create unit tests for each markdown operation, testing with various markdown inputs including edge cases like empty documents, complex nested structures, and malformed markdown."
           },
           {
@@ -539,7 +539,7 @@
               2
             ],
             "details": "Register the MarkItDown agent with the AgentFactory using the provided code snippet. Update the Universal Orchestrator's request routing logic to recognize markdown-related tasks and route them to the MarkItDown agent. Ensure proper integration with the existing agent communication protocols.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test the end-to-end flow by submitting markdown-related requests to the orchestrator and verifying they are correctly routed to the MarkItDown agent."
           },
           {
@@ -549,8 +549,8 @@
             "dependencies": [
               2
             ],
-            "details": "Implement the DocumentMemoryItem interface as specified in the requirements. Extend the AgentMemory system to handle storage and retrieval of markdown documents and their processed structures. Ensure the memory system can efficiently store and query document metadata.",
-            "status": "pending",
+            "details": "Implement the DocumentMemoryItem interface as specified in the requirements. Extend the AgentMemory system to handle storage and retrieval of markdown documents and their processed structures. Ensure the memory system can efficiently store and query document metadata.\n<info added on 2025-07-16T11:31:21.578Z>\nImplementation of document memory handling has been completed successfully with the following key components:\n\n1. DocumentMemoryItem interface extending MemoryItem with document-specific fields:\n   - documentType: 'markdown' | 'html' | 'text' | 'other'\n   - documentStructure: hierarchical document structure representation\n   - parseResult: extracted elements (headings, links, images, tables, code blocks, lists)\n   - fileInfo: file metadata (name, size, encoding, modification date)\n\n2. DocumentMemory class with specialized operations:\n   - storeDocument(): Store documents with structure and metadata\n   - retrieveByType(): Get documents by type (markdown, html, text)\n   - searchContent(): Full-text search across documents\n   - retrieveByStructure(): Query documents by structural elements\n   - updateStructure(): Update document structure when content changes\n   - getStats(): Document statistics and analytics\n\n3. DocumentProcessor class for markdown analysis:\n   - extractMarkdownStructure(): Parse document into hierarchical sections\n   - parseMarkdownElements(): Extract headings, links, images, tables, code blocks, lists\n   - extractMetadata(): Process YAML front matter and document metadata\n   - Word count, reading time estimation, language detection\n\n4. Enhanced MarkItDownAgent with document memory integration:\n   - storeMarkdownDocument(): Store processed markdown with structure\n   - retrieveMarkdownDocuments(): Query stored documents\n   - searchMarkdownDocuments(): Search document content\n   - updateDocumentStructure(): Update document when content changes\n   - getDocumentStats(): Analytics and statistics\n\n5. Comprehensive testing with 35 tests covering all document memory functionality, including storage, retrieval, search, structure analysis, edge cases, and error handling.\n\nThe system now provides sophisticated document memory capabilities that preserve structure, metadata, and enable efficient querying of processed markdown documents, allowing the MarkItDown agent to maintain context across sessions and provide intelligent document management.\n</info added on 2025-07-16T11:31:21.578Z>",
+            "status": "done",
             "testStrategy": "Test storing various markdown documents in memory, retrieving them, and verifying that document structure and metadata are preserved correctly."
           },
           {
@@ -562,7 +562,7 @@
               4
             ],
             "details": "Create the CLI command processor for markdown operations as outlined in the requirements. Implement subcommands for each of the MarkItDown agent's capabilities. Ensure the commands provide helpful usage information and proper error messages. Document all available commands and their parameters.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "Test each CLI command with various inputs, including valid commands, edge cases, and error scenarios. Verify that the commands correctly interact with the MarkItDown agent and return appropriate responses."
           }
         ]
@@ -706,7 +706,7 @@
     ],
     "metadata": {
       "created": "2025-07-14T19:24:46.745Z",
-      "updated": "2025-07-16T10:20:23.453Z",
+      "updated": "2025-07-16T13:34:35.594Z",
       "description": "Tasks for master context"
     }
   }

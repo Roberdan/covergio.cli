@@ -6,6 +6,8 @@
 
 import { BaseAgent } from './BaseAgent.js';
 import { AgentConfig, AgentRequest, AgentResponse, Capability, PersonalityTrait, ToolDefinition } from './types.js';
+import { DocumentMemory, DocumentMemoryItem, createDocumentMemory } from './memory/DocumentMemory.js';
+import { DocumentProcessor, createDocumentProcessor } from './memory/DocumentProcessor.js';
 // Use dynamic import to avoid compilation issues
 let MarkItDown: any;
 
@@ -14,6 +16,8 @@ let MarkItDown: any;
  */
 export class MarkItDownAgent extends BaseAgent {
   private markItDown: any;
+  private documentMemory: DocumentMemory;
+  private documentProcessor: DocumentProcessor;
 
   constructor(config: AgentConfig) {
     // Set up the agent configuration with MarkItDown-specific details
@@ -68,6 +72,10 @@ export class MarkItDownAgent extends BaseAgent {
     super(markItDownConfig);
     // Initialize markItDown in the initialize method
     this.markItDown = null;
+    
+    // Initialize document memory and processor
+    this.documentMemory = createDocumentMemory();
+    this.documentProcessor = createDocumentProcessor();
   }
 
   /**
@@ -172,6 +180,13 @@ export class MarkItDownAgent extends BaseAgent {
           title: this.extractTitleFromMarkdown(content)
         };
       }
+      
+      // Store in document memory
+      await this.storeMarkdownDocument(content, undefined, {
+        type: 'markdown-parsing',
+        originalLength: content.length,
+        processedLength: result.text_content?.length || 0
+      });
       
       // Store the parsing result in memory
       await this.memory.store({
@@ -634,6 +649,168 @@ export class MarkItDownAgent extends BaseAgent {
     }
     
     return input;
+  }
+
+  /**
+   * Store a markdown document in specialized memory
+   */
+  async storeMarkdownDocument(
+    content: string,
+    filename?: string,
+    metadata?: Record<string, any>
+  ): Promise<string> {
+    try {
+      // Process the document to extract structure
+      const processedDoc = await this.documentProcessor.processMarkdownDocument(content, filename);
+      
+      // Store in document memory
+      const documentId = await this.documentMemory.storeDocument(
+        content,
+        'markdown',
+        processedDoc.documentStructure,
+        {
+          ...processedDoc.metadata,
+          ...metadata,
+          agentId: this.id,
+          processedAt: new Date().toISOString()
+        }
+      );
+      
+      // Also store in regular agent memory for general queries
+      await this.memory.store({
+        content: `Stored markdown document: ${filename || 'untitled'} (${content.length} characters)`,
+        timestamp: new Date(),
+        metadata: {
+          type: 'document-storage',
+          documentId,
+          filename,
+          contentLength: content.length,
+          documentType: 'markdown'
+        }
+      });
+      
+      return documentId;
+    } catch (error) {
+      throw new Error(`Failed to store markdown document: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Retrieve markdown documents from memory
+   */
+  async retrieveMarkdownDocuments(
+    query: string,
+    limit = 10
+  ): Promise<DocumentMemoryItem[]> {
+    try {
+      return await this.documentMemory.retrieveByType('markdown', limit);
+    } catch (error) {
+      throw new Error(`Failed to retrieve markdown documents: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Search markdown documents by content
+   */
+  async searchMarkdownDocuments(
+    searchTerm: string,
+    limit = 10
+  ): Promise<DocumentMemoryItem[]> {
+    try {
+      return await this.documentMemory.searchContent(searchTerm, 'markdown', limit);
+    } catch (error) {
+      throw new Error(`Failed to search markdown documents: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Get document by ID
+   */
+  async getDocumentById(documentId: string): Promise<DocumentMemoryItem | undefined> {
+    try {
+      return await this.documentMemory.getById(documentId);
+    } catch (error) {
+      throw new Error(`Failed to get document by ID: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Get document statistics
+   */
+  async getDocumentStats(): Promise<{
+    total: number;
+    byType: Record<string, number>;
+    averageSize: number;
+    oldestDocument: Date | null;
+    newestDocument: Date | null;
+  }> {
+    try {
+      return await this.documentMemory.getStats();
+    } catch (error) {
+      throw new Error(`Failed to get document statistics: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Update document structure
+   */
+  async updateDocumentStructure(
+    documentId: string,
+    newContent: string,
+    filename?: string
+  ): Promise<void> {
+    try {
+      // Re-process the document to get updated structure
+      const processedDoc = await this.documentProcessor.processMarkdownDocument(newContent, filename);
+      
+      // Update the document memory
+      await this.documentMemory.update(documentId, {
+        content: newContent,
+        documentStructure: processedDoc.documentStructure,
+        parseResult: processedDoc.parseResult,
+        metadata: {
+          ...processedDoc.metadata,
+          updatedAt: new Date().toISOString(),
+          agentId: this.id
+        }
+      });
+      
+      // Log the update in regular memory
+      await this.memory.store({
+        content: `Updated document structure for document ID: ${documentId}`,
+        timestamp: new Date(),
+        metadata: {
+          type: 'document-update',
+          documentId,
+          contentLength: newContent.length,
+          operation: 'structure-update'
+        }
+      });
+    } catch (error) {
+      throw new Error(`Failed to update document structure: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Delete document from memory
+   */
+  async deleteDocument(documentId: string): Promise<void> {
+    try {
+      await this.documentMemory.delete(documentId);
+      
+      // Log the deletion in regular memory
+      await this.memory.store({
+        content: `Deleted document ID: ${documentId}`,
+        timestamp: new Date(),
+        metadata: {
+          type: 'document-deletion',
+          documentId,
+          operation: 'delete'
+        }
+      });
+    } catch (error) {
+      throw new Error(`Failed to delete document: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
