@@ -18,18 +18,14 @@ export interface OrchestrationRequest {
 export interface OrchestrationResponse {
   id: string;
   requestId: string;
+  type: string;
+  content: string;
   agents: AgentInstance[];
   workflow: WorkflowPlan;
   status: OrchestrationStatus;
   result?: unknown;
   error?: Error;
-  metrics: {
-    startTime: Date;
-    endTime?: Date;
-    duration?: number;
-    agentsUsed: number;
-    stepsCompleted: number;
-  };
+  metrics: OrchestrationMetrics;
 }
 
 export interface IOrchestrator {

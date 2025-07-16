@@ -9,11 +9,53 @@ import {
   UserTierId,
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
-  isProQuotaExceededError,
-  isGenericQuotaExceededError,
-  isApiError,
-  isStructuredError,
 } from '@google/gemini-cli-core';
+
+// Type guards for error handling (fallback implementations)
+interface StructuredError {
+  message: string;
+  status?: number;
+}
+
+interface ApiError {
+  error: {
+    message: string;
+    status: number;
+    code?: number;
+  };
+}
+
+function isProQuotaExceededError(error: unknown): boolean {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any;
+    return err.status === 429 && err.message?.includes('pro quota');
+  }
+  return false;
+}
+
+function isGenericQuotaExceededError(error: unknown): boolean {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any;
+    return err.status === 429 && (err.message?.includes('quota') || err.message?.includes('limit'));
+  }
+  return false;
+}
+
+function isApiError(error: unknown): error is ApiError {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any;
+    return err.error && typeof err.error.message === 'string' && typeof err.error.status === 'number';
+  }
+  return false;
+}
+
+function isStructuredError(error: unknown): error is StructuredError {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any;
+    return typeof err.message === 'string';
+  }
+  return false;
+}
 
 // Free Tier message functions
 const getRateLimitErrorMessageGoogleFree = (

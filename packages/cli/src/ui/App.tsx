@@ -55,8 +55,7 @@ import {
   ApprovalMode,
   isEditorAvailable,
   EditorType,
-  FlashFallbackEvent,
-  logFlashFallback,
+  UserTierId,
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import { useLogger } from './hooks/useLogger.js';
@@ -70,11 +69,34 @@ import { useBracketedPaste } from './hooks/useBracketedPaste.js';
 import { useTextBuffer } from './components/shared/text-buffer.js';
 import * as fs from 'fs';
 import { UpdateNotification } from './components/UpdateNotification.js';
-import {
-  isProQuotaExceededError,
-  isGenericQuotaExceededError,
-  UserTierId,
-} from '@google/gemini-cli-core';
+
+// Fallback implementations for missing imports
+interface FlashFallbackEvent {
+  type: 'flash_fallback';
+  originalModel: string;
+  fallbackModel: string;
+  reason: string;
+}
+
+function logFlashFallback(event: FlashFallbackEvent): void {
+  console.log(`Flash fallback: ${event.originalModel} -> ${event.fallbackModel} (${event.reason})`);
+}
+
+function isProQuotaExceededError(error: unknown): boolean {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any;
+    return err.status === 429 && err.message?.includes('pro quota');
+  }
+  return false;
+}
+
+function isGenericQuotaExceededError(error: unknown): boolean {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any;
+    return err.status === 429 && (err.message?.includes('quota') || err.message?.includes('limit'));
+  }
+  return false;
+}
 import { checkForUpdates } from './utils/updateCheck.js';
 import ansiEscapes from 'ansi-escapes';
 import { OverflowProvider } from './contexts/OverflowContext.js';

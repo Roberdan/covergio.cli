@@ -8,9 +8,9 @@ import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { AuthenticationManager } from '../AuthenticationManager';
-import { OAuth2Config, AuthErrorType } from '../types';
-import { OAUTH2_PROVIDERS } from '../index';
+import { AuthenticationManager } from '../AuthenticationManager.js';
+import { OAuth2Config, AuthErrorType } from '../types.js';
+import { OAUTH2_PROVIDERS } from '../index.js';
 
 describe('AuthenticationManager', () => {
   let authManager: AuthenticationManager;

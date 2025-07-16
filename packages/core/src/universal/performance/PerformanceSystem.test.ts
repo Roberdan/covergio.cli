@@ -9,6 +9,24 @@ import { CacheManager } from './CacheManager.js';
 import { RequestQueue, RequestPriority } from './RequestQueue.js';
 import { CircuitBreaker, CircuitState } from './CircuitBreaker.js';
 import { PerformanceManager } from './PerformanceManager.js';
+import { OrchestrationRequest } from '../interfaces/IOrchestrator.js';
+
+// Helper function to create valid test requests
+function createTestRequest(id: string, userInput: string): OrchestrationRequest {
+  return {
+    id,
+    userInput,
+    sessionContext: {
+      sessionId: `session-${id}`,
+      userId: 'test-user',
+      currentContext: {},
+      conversationHistory: [],
+      metadata: {}
+    },
+    timestamp: new Date(),
+    priority: 'medium'
+  };
+}
 
 describe('Performance System Integration Tests', () => {
   describe('CacheManager', () => {
@@ -109,8 +127,25 @@ describe('Performance System Integration Tests', () => {
         await new Promise(resolve => setTimeout(resolve, 100));
         return {
           id: 'response-' + request.id,
+          requestId: request.id,
           type: 'success',
-          content: 'Processed: ' + request.userInput
+          content: 'Processed: ' + request.userInput,
+          agents: [],
+          workflow: { steps: [], metadata: {} },
+          status: 'completed' as any,
+          metrics: {
+            startTime: new Date(),
+            endTime: new Date(),
+            duration: 100,
+            agentsUsed: 0,
+            stepsCompleted: 1,
+            totalSteps: 1,
+            averageResponseTime: 100,
+            successRate: 1,
+            errorRate: 0,
+            cacheMisses: 0,
+            cacheHits: 0
+          }
         };
       });
     });
@@ -126,19 +161,19 @@ describe('Performance System Integration Tests', () => {
       // Enqueue requests with different priorities
       const promises = [
         requestQueue.enqueue(
-          { id: '1', userInput: 'low priority' }, 
+          createTestRequest('1', 'low priority'), 
           RequestPriority.LOW
         ).then(result => {
           results.push({ ...result, completedAt: Date.now() - startTime });
         }),
         requestQueue.enqueue(
-          { id: '2', userInput: 'high priority' }, 
+          createTestRequest('2', 'high priority'), 
           RequestPriority.HIGH
         ).then(result => {
           results.push({ ...result, completedAt: Date.now() - startTime });
         }),
         requestQueue.enqueue(
-          { id: '3', userInput: 'normal priority' }, 
+          createTestRequest('3', 'normal priority'), 
           RequestPriority.NORMAL
         ).then(result => {
           results.push({ ...result, completedAt: Date.now() - startTime });
@@ -160,13 +195,13 @@ describe('Performance System Integration Tests', () => {
       const promises = [];
       for (let i = 0; i < 10; i++) {
         promises.push(
-          requestQueue.enqueue({ id: `req-${i}`, userInput: `test ${i}` })
+          requestQueue.enqueue(createTestRequest(`req-${i}`, `test ${i}`))
         );
       }
 
       // This should fail as queue is now full
       await expect(
-        requestQueue.enqueue({ id: 'overflow', userInput: 'overflow test' })
+        requestQueue.enqueue(createTestRequest('overflow', 'overflow test'))
       ).rejects.toThrow('Queue is full');
 
       // Wait for some to complete
@@ -174,8 +209,8 @@ describe('Performance System Integration Tests', () => {
     });
 
     it('should track queue metrics accurately', async () => {
-      const request1 = requestQueue.enqueue({ id: '1', userInput: 'test1' });
-      const request2 = requestQueue.enqueue({ id: '2', userInput: 'test2' });
+      const request1 = requestQueue.enqueue(createTestRequest('1', 'test1'));
+      const request2 = requestQueue.enqueue(createTestRequest('2', 'test2'));
 
       await Promise.all([request1, request2]);
 
@@ -193,11 +228,32 @@ describe('Performance System Integration Tests', () => {
 
       timeoutQueue.addProcessor('slow', async (request) => {
         await new Promise(resolve => setTimeout(resolve, 200)); // Longer than timeout
-        return { id: 'response', type: 'success', content: 'slow response' };
+        return { 
+          id: 'response', 
+          requestId: request.id,
+          type: 'success', 
+          content: 'slow response',
+          agents: [],
+          workflow: { steps: [], metadata: {} },
+          status: 'completed' as any,
+          metrics: {
+            startTime: new Date(),
+            endTime: new Date(),
+            duration: 200,
+            agentsUsed: 0,
+            stepsCompleted: 1,
+            totalSteps: 1,
+            averageResponseTime: 200,
+            successRate: 1,
+            errorRate: 0,
+            cacheMisses: 0,
+            cacheHits: 0
+          }
+        };
       });
 
       await expect(
-        timeoutQueue.enqueue({ id: 'timeout-test', userInput: 'slow request' })
+        timeoutQueue.enqueue(createTestRequest('timeout-test', 'slow request'))
       ).rejects.toThrow('timeout');
 
       await timeoutQueue.shutdown();
@@ -345,8 +401,25 @@ describe('Performance System Integration Tests', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
         return {
           id: 'response-' + request.id,
+          requestId: request.id,
           type: 'success',
-          content: 'Processed: ' + request.userInput
+          content: 'Processed: ' + request.userInput,
+          agents: [],
+          workflow: { steps: [], metadata: {} },
+          status: 'completed' as any,
+          metrics: {
+            startTime: new Date(),
+            endTime: new Date(),
+            duration: 50,
+            agentsUsed: 0,
+            stepsCompleted: 1,
+            totalSteps: 1,
+            averageResponseTime: 50,
+            successRate: 1,
+            errorRate: 0,
+            cacheMisses: 0,
+            cacheHits: 0
+          }
         };
       });
     });
@@ -433,7 +506,7 @@ describe('Performance System Integration Tests', () => {
       for (let i = 0; i < 5; i++) {
         requests.push(
           performanceManager.executeRequest(
-            { id: `req-${i}`, userInput: `test ${i}` },
+            createTestRequest(`req-${i}`, `test ${i}`),
             RequestPriority.NORMAL,
             { processorName: 'test' }
           )
@@ -477,7 +550,17 @@ describe('Performance System Integration Tests', () => {
       performanceManager = new PerformanceManager({
         queue: { concurrencyLimit: 5, maxQueueSize: 100 },
         cache: { maxSize: 200 },
-        optimization: { enableResponseCaching: true }
+        optimization: { 
+          enableAgentPooling: true,
+          enableResponseCaching: true,
+          enableRequestBatching: false,
+          enableCircuitBreakers: true,
+          enableMemoryOptimization: false,
+          enableGCOptimization: false,
+          agentPoolSize: 5,
+          cacheHitRateTarget: 0.8,
+          maxConcurrentRequests: 50
+        }
       });
 
       performanceManager.registerProcessor('load-test', async (request) => {
@@ -485,8 +568,25 @@ describe('Performance System Integration Tests', () => {
         await new Promise(resolve => setTimeout(resolve, delay));
         return {
           id: 'response-' + request.id,
+          requestId: request.id,
           type: 'success',
-          content: `Processed ${request.userInput} in ${delay}ms`
+          content: `Processed ${request.userInput} in ${delay}ms`,
+          agents: [],
+          workflow: { steps: [], metadata: {} },
+          status: 'completed' as any,
+          metrics: {
+            startTime: new Date(),
+            endTime: new Date(),
+            duration: delay,
+            agentsUsed: 0,
+            stepsCompleted: 1,
+            totalSteps: 1,
+            averageResponseTime: delay,
+            successRate: 1,
+            errorRate: 0,
+            cacheMisses: 0,
+            cacheHits: 0
+          }
         };
       });
     });
@@ -505,7 +605,7 @@ describe('Performance System Integration Tests', () => {
         const useCache = i % 3 === 0; // Every 3rd request uses cache
         requests.push(
           performanceManager.executeRequest(
-            { id: `load-${i}`, userInput: `load test ${i % 10}` }, // 10 unique patterns
+            createTestRequest(`load-${i}`, `load test ${i % 10}`), // 10 unique patterns
             RequestPriority.NORMAL,
             {
               useCache,

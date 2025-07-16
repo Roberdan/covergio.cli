@@ -55,7 +55,7 @@ export interface QueueMetrics {
 /**
  * Queued request interface
  */
-interface QueuedRequest extends OrchestrationRequest {
+interface QueuedRequest extends Omit<OrchestrationRequest, 'priority'> {
   priority: RequestPriority;
   queuedAt: number;
   attempts: number;
