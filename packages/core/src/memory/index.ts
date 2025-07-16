@@ -8,12 +8,16 @@
  * Agent Memory and Context Engine
  * 
  * This module provides comprehensive memory management capabilities for AI agents,
- * including storage, retrieval, context management, and cross-agent memory sharing.
+ * including storage, retrieval, context management, cross-agent memory sharing,
+ * and advanced vector database integration with semantic search capabilities.
  */
 
 // Core types and interfaces
 export * from './types.js';
 export * from './interfaces.js';
+
+// Vector database and embedding system
+export * from './vector/index.js';
 
 // Core implementations
 export { AgentMemoryEngine } from './AgentMemoryEngine.js';
