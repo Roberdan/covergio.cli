@@ -21,6 +21,10 @@ esbuild
     outfile: 'bundle/convergio.js',
     platform: 'node',
     format: 'esm',
+    target: 'node18',
+    keepNames: true,
+    minify: false,
+    treeShaking: false,
     define: {
       'process.env.CLI_VERSION': JSON.stringify(pkg.version),
     },

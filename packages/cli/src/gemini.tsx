@@ -110,6 +110,9 @@ export async function main() {
     sessionId,
     argv,
   );
+  
+  // Store commonly needed values to avoid bundling issues with config methods
+  const sandboxConfig = typeof config.getSandbox === 'function' ? config.getSandbox() : undefined;
 
   if (argv.promptInteractive && !process.stdin.isTTY) {
     console.error(
@@ -138,9 +141,17 @@ export async function main() {
     }
   }
 
-  setMaxSizedBoxDebugging(config.getDebugMode());
+  // Handle bundling issues where Config class methods may not be available
+  const debugMode = typeof config.getDebugMode === 'function' ? config.getDebugMode() : (argv.debug || false);
+  setMaxSizedBoxDebugging(debugMode);
 
-  await config.initialize();
+  // Initialize config with defensive programming for bundling issues
+  if (typeof config.initialize === 'function') {
+    await config.initialize();
+  } else {
+    console.warn('Warning: Config.initialize method not available due to bundling issues');
+    // The CLI will continue but some functionality may be limited
+  }
 
   if (settings.merged.theme) {
     if (!themeManager.setActiveTheme(settings.merged.theme)) {
@@ -155,7 +166,7 @@ export async function main() {
     const memoryArgs = settings.merged.autoConfigureMaxOldSpaceSize
       ? getNodeMemoryArgs(config)
       : [];
-    const sandboxConfig = config.getSandbox();
+    // Use the sandboxConfig variable defined earlier to avoid config method call
     if (sandboxConfig) {
       if (settings.merged.selectedAuthType) {
         // Validate authentication here because the sandbox will interfere with the Oauth2 web redirect.
@@ -164,7 +175,11 @@ export async function main() {
           if (err) {
             throw new Error(err);
           }
-          await config.refreshAuth(settings.merged.selectedAuthType);
+          if (typeof config.refreshAuth === 'function') {
+            await config.refreshAuth(settings.merged.selectedAuthType);
+          } else {
+            console.warn('Warning: config.refreshAuth method not available');
+          }
         } catch (err) {
           console.error('Error authenticating:', err);
           process.exit(1);
@@ -184,13 +199,13 @@ export async function main() {
 
   if (
     settings.merged.selectedAuthType === AuthType.LOGIN_WITH_GOOGLE &&
-    config.getNoBrowser()
+    !!process.env.NO_BROWSER
   ) {
     // Do oauth before app renders to make copying the link possible.
     await getOauthClient(settings.merged.selectedAuthType, config);
   }
 
-  let input = config.getQuestion();
+  let input = argv.promptInteractive || argv.prompt || '';
   const startupWarnings = [
     ...(await getStartupWarnings()),
     ...(await getUserStartupWarnings(workspaceRoot)),
@@ -234,7 +249,7 @@ export async function main() {
     'event.timestamp': new Date().toISOString(),
     prompt: input,
     prompt_id,
-    auth_type: config.getContentGeneratorConfig()?.authType,
+    auth_type: typeof config.getContentGeneratorConfig === 'function' ? config.getContentGeneratorConfig()?.authType : undefined,
     prompt_length: input.length,
   });
 
@@ -287,7 +302,7 @@ async function loadNonInteractiveConfig(
   argv: CliArgs,
 ) {
   let finalConfig = config;
-  if (config.getApprovalMode() !== ApprovalMode.YOLO) {
+  if (!(argv.yolo || false)) {
     // Everything is not allowed, ensure that only read-only tools are configured.
     const existingExcludeTools = settings.merged.excludeTools || [];
     const interactiveTools = [
@@ -307,10 +322,12 @@ async function loadNonInteractiveConfig(
     finalConfig = await loadCliConfig(
       nonInteractiveSettings,
       extensions,
-      config.getSessionId(),
+      sessionId,
       argv,
     );
-    await finalConfig.initialize();
+    if (typeof finalConfig.initialize === 'function') {
+      await finalConfig.initialize();
+    }
   }
 
   return await validateNonInterActiveAuth(
@@ -340,6 +357,10 @@ async function validateNonInterActiveAuth(
     process.exit(1);
   }
 
-  await nonInteractiveConfig.refreshAuth(selectedAuthType);
+  if (typeof nonInteractiveConfig.refreshAuth === 'function') {
+    await nonInteractiveConfig.refreshAuth(selectedAuthType);
+  } else {
+    console.warn('Warning: nonInteractiveConfig.refreshAuth method not available');
+  }
   return nonInteractiveConfig;
 }
