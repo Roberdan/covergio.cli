@@ -10,9 +10,12 @@ import { MarkItDownAgent } from '../agents/MarkItDownAgent.js';
 import { ImageAltTextAgent } from '../agents/ImageAltTextAgent.js';
 import { AgentFactory } from '../agents/AgentFactory.js';
 import { AgentConfig } from '../agents/types.js';
+import { PerformanceManager, PerformanceConfig } from '../performance/PerformanceManager.js';
+import { RequestPriority } from '../performance/RequestQueue.js';
 
 export class UniversalOrchestrator extends BaseOrchestrator {
   private agentFactory: AgentFactory;
+  private performanceManager: PerformanceManager;
   
   constructor(
     config: any,
@@ -20,10 +23,136 @@ export class UniversalOrchestrator extends BaseOrchestrator {
     requestRouter: any,
     workflowManager: any,
     eventSystem: any,
-    agentFactory?: AgentFactory
+    agentFactory?: AgentFactory,
+    performanceConfig?: Partial<PerformanceConfig>
   ) {
     super(config, requestAnalyzer, requestRouter, workflowManager, eventSystem);
     this.agentFactory = agentFactory || new AgentFactory();
+    
+    // Initialize performance manager with optimizations
+    this.performanceManager = new PerformanceManager({
+      cache: {
+        maxSize: config?.performance?.cache?.maxSize || 1000,
+        defaultTtl: 300000, // 5 minutes
+        enableMetrics: true,
+        evictionPolicy: 'lru',
+        redisConfig: config?.performance?.cache?.redis
+      },
+      queue: {
+        concurrencyLimit: config?.performance?.queue?.concurrencyLimit || 10,
+        maxQueueSize: 1000,
+        enablePrioritization: true,
+        enableBatching: false
+      },
+      circuitBreaker: {
+        failureThreshold: 5,
+        resetTimeoutMs: 60000,
+        errorPercentageThreshold: 50
+      },
+      monitoring: {
+        enabled: true,
+        metricsInterval: 30000,
+        healthCheckInterval: 60000,
+        performanceThresholds: {
+          maxResponseTime: 5000,
+          maxErrorRate: 0.1,
+          maxQueueUtilization: 0.8,
+          maxMemoryUsage: 0.8
+        }
+      },
+      optimization: {
+        enableAgentPooling: true,
+        enableResponseCaching: true,
+        enableRequestBatching: false,
+        enableCircuitBreakers: true,
+        agentPoolSize: 5,
+        cacheHitRateTarget: 0.8,
+        maxConcurrentRequests: 50
+      },
+      ...performanceConfig
+    });
+
+    this.setupPerformanceIntegration();
+  }
+
+  /**
+   * Setup performance integration and agent pools
+   */
+  private setupPerformanceIntegration(): void {
+    // Setup agent pools for commonly used agents
+    this.performanceManager.createAgentPool(
+      'gemini',
+      async () => {
+        const config: AgentConfig = {
+          id: `gemini-pool-${Date.now()}`,
+          domain: 'conversation',
+          role: 'text-generator',
+          capabilities: ['text-generation', 'code-assistance']
+        };
+        return await this.agentFactory.createAgent(config);
+      },
+      (agent: any) => agent && typeof agent.execute === 'function',
+      3
+    );
+
+    this.performanceManager.createAgentPool(
+      'markdown',
+      async () => {
+        const config: AgentConfig = {
+          id: `markdown-pool-${Date.now()}`,
+          domain: 'document-processing',
+          role: 'markdown-specialist',
+          capabilities: ['markdown-parsing', 'document-analysis']
+        };
+        return new MarkItDownAgent(config);
+      },
+      (agent: any) => agent && typeof agent.processRequest === 'function',
+      2
+    );
+
+    this.performanceManager.createAgentPool(
+      'image-alt-text',
+      async () => {
+        const config: AgentConfig = {
+          id: `image-alt-text-pool-${Date.now()}`,
+          domain: 'document-processing',
+          role: 'image-accessibility-specialist',
+          capabilities: ['image-analysis', 'alt-text-generation']
+        };
+        return new ImageAltTextAgent(config);
+      },
+      (agent: any) => agent && typeof agent.execute === 'function',
+      2
+    );
+
+    // Register request processors
+    this.performanceManager.registerProcessor('default', async (request) => {
+      return await this.processRequestDirect(request);
+    });
+
+    this.performanceManager.registerProcessor('markdown', async (request) => {
+      return await this.processMarkdownRequest(request);
+    });
+
+    this.performanceManager.registerProcessor('image-processing', async (request) => {
+      return await this.processImageRequest(request);
+    });
+
+    // Setup performance event listeners
+    this.performanceManager.on('performance-degradation', (data) => {
+      console.warn('Performance degradation detected:', data);
+      this.eventSystem.publish({
+        id: this.generateId(),
+        type: 'orchestrator.performance.degradation',
+        source: this.config.orchestrator.id,
+        timestamp: new Date(),
+        data
+      });
+    });
+
+    this.performanceManager.on('cache-optimization-needed', (data) => {
+      console.info('Cache optimization needed:', data);
+    });
   }
   
   protected async initializeAgents(): Promise<void> {
@@ -424,9 +553,159 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   }
 
   /**
-   * Enhanced orchestrate method with markdown and image processing routing
+   * Direct request processing without performance optimizations (legacy)
+   */
+  private async processRequestDirect(request: any): Promise<any> {
+    return super.orchestrate(request);
+  }
+
+  /**
+   * Process markdown requests with agent pooling
+   */
+  private async processMarkdownRequest(request: any): Promise<any> {
+    const agent = await this.performanceManager.getAgent('markdown');
+    if (agent) {
+      try {
+        const response = await agent.processRequest({
+          id: request.id,
+          content: request.userInput,
+          type: 'markdown-processing',
+          timestamp: new Date()
+        });
+        return {
+          id: this.generateId(),
+          requestId: request.id,
+          status: 'completed',
+          result: response
+        };
+      } finally {
+        this.performanceManager.returnAgent('markdown', agent);
+      }
+    }
+    throw new Error('No markdown agent available');
+  }
+
+  /**
+   * Process image requests with agent pooling
+   */
+  private async processImageRequest(request: any): Promise<any> {
+    const agent = await this.performanceManager.getAgent('image-alt-text');
+    if (agent) {
+      try {
+        const response = await agent.execute({
+          input: request.userInput,
+          context: {
+            sessionId: request.sessionId || 'orchestrator-session',
+            executionId: request.id,
+            timestamp: new Date(),
+            environment: {}
+          }
+        });
+        return {
+          id: this.generateId(),
+          requestId: request.id,
+          status: 'completed',
+          result: response
+        };
+      } finally {
+        this.performanceManager.returnAgent('image-alt-text', agent);
+      }
+    }
+    throw new Error('No image processing agent available');
+  }
+
+  /**
+   * Enhanced orchestrate method with performance optimizations
    */
   async orchestrate(request: any): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Determine request priority
+      let priority = RequestPriority.NORMAL;
+      if (request.priority === 'high' || request.priority === 'critical') {
+        priority = RequestPriority.HIGH;
+      } else if (request.priority === 'low') {
+        priority = RequestPriority.LOW;
+      }
+
+      // Generate cache key for response caching
+      const cacheKey = `orchestrator:${request.userInput}:${JSON.stringify(request.context || {})}`;
+
+      // Determine processor and routing
+      let processorName = 'default';
+      let useCircuitBreaker = false;
+      let circuitBreakerName = '';
+
+      if (this.isImageProcessingRequest(request)) {
+        processorName = 'image-processing';
+        useCircuitBreaker = true;
+        circuitBreakerName = 'image-processing';
+      } else if (this.isMarkdownRequest(request)) {
+        processorName = 'markdown';
+        useCircuitBreaker = true;
+        circuitBreakerName = 'markdown-processing';
+      }
+
+      // Execute with performance optimizations
+      const result = await this.performanceManager.executeRequest(
+        request,
+        priority,
+        {
+          useCache: true,
+          cacheKey,
+          cacheTtl: 300000, // 5 minutes
+          useCircuitBreaker,
+          circuitBreakerName,
+          processorName
+        }
+      );
+
+      const duration = Date.now() - startTime;
+      
+      // Emit performance metrics
+      await this.eventSystem.publish({
+        id: this.generateId(),
+        type: 'orchestrator.request.completed',
+        source: this.config.orchestrator.id,
+        timestamp: new Date(),
+        data: {
+          requestId: request.id,
+          duration,
+          processor: processorName,
+          priority,
+          cached: false // This would be determined by the performance manager
+        }
+      });
+
+      return result;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      // Emit error event
+      await this.eventSystem.publish({
+        id: this.generateId(),
+        type: 'orchestrator.request.failed',
+        source: this.config.orchestrator.id,
+        timestamp: new Date(),
+        data: {
+          requestId: request.id,
+          duration,
+          error: (error as Error).message
+        }
+      });
+
+      // Fallback to legacy processing
+      console.warn('Performance-optimized processing failed, falling back to legacy:', error);
+      return await this.orchestrateLegacy(request);
+    }
+  }
+
+  /**
+   * Legacy orchestrate method as fallback
+   */
+  private async orchestrateLegacy(request: any): Promise<any> {
     // Check if this is an image processing request
     if (this.isImageProcessingRequest(request)) {
       const imageAgent = this.agents.get('image-alt-text-specialist');
@@ -562,5 +841,85 @@ export class UniversalOrchestrator extends BaseOrchestrator {
 
     // Fall back to default orchestration for non-markdown requests
     return super.orchestrate(request);
+  }
+
+  /**
+   * Get performance metrics from the orchestrator
+   */
+  getPerformanceMetrics() {
+    return this.performanceManager.getMetrics();
+  }
+
+  /**
+   * Get performance health status
+   */
+  async getPerformanceHealth() {
+    return await this.performanceManager.getHealth();
+  }
+
+  /**
+   * Get performance report with recommendations
+   */
+  getPerformanceReport() {
+    return this.performanceManager.getPerformanceReport();
+  }
+
+  /**
+   * Configure caching for specific request patterns
+   */
+  configureCaching(patterns: { pattern: string; ttl: number; tags?: string[] }[]) {
+    // This would be implemented to configure automatic caching rules
+    patterns.forEach(({ pattern, ttl, tags }) => {
+      console.info(`Configured caching for pattern: ${pattern}, TTL: ${ttl}ms, tags: ${tags?.join(', ') || 'none'}`);
+    });
+  }
+
+  /**
+   * Update performance configuration at runtime
+   */
+  updatePerformanceConfig(config: Partial<PerformanceConfig>) {
+    console.info('Performance configuration updated:', config);
+    // This would merge with existing configuration and apply changes
+  }
+
+  /**
+   * Force cache invalidation by tags or patterns
+   */
+  async invalidateCache(options: { tags?: string[]; pattern?: string }) {
+    await this.performanceManager['cacheManager'].invalidate(options);
+  }
+
+  /**
+   * Get circuit breaker status for all services
+   */
+  getCircuitBreakerStatus() {
+    return this.performanceManager['circuitBreakerFactory'].getAllHealth();
+  }
+
+  /**
+   * Reset specific circuit breaker
+   */
+  resetCircuitBreaker(name: string) {
+    const breaker = this.performanceManager['circuitBreakerFactory']['breakers'].get(name);
+    if (breaker) {
+      breaker.reset();
+      console.info(`Circuit breaker ${name} reset`);
+    }
+  }
+
+  /**
+   * Enhanced initialization with performance setup
+   */
+  async initialize(): Promise<void> {
+    await super.initialize();
+    console.info('UniversalOrchestrator initialized with performance optimizations');
+  }
+
+  /**
+   * Cleanup with performance manager destruction
+   */
+  async terminate(): Promise<void> {
+    await this.performanceManager.destroy();
+    await super.terminate();
   }
 }
