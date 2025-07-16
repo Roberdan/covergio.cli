@@ -63,3 +63,6 @@ export { sessionId } from './utils/session.js';
 
 // Export Universal Orchestrator Framework
 export * from './universal/index.js';
+
+// Export RAG System
+export * from './rag/index.js';
