@@ -1,7 +1,6 @@
 # Implementation Plan
 
 - [ ] 1. Set up core RAG system foundation
-  - Create directory structure for RAG components in packages/core/src/rag/
   - Implement base TypeScript interfaces and types for all RAG components
   - Set up dependency injection registration for RAG services
   - Create configuration schema for RAG system settings

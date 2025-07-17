@@ -5,6 +5,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
 import {
   IAgent,
   AgentDefinition,
@@ -20,6 +21,15 @@ import {
   AgentEvents
 } from './types.js';
 import { IAgentLifecycle, AgentLifecycleState } from './interfaces.js';
+import { logger } from '../../utils/Logger.js';
+import { CircuitBreaker } from '../../utils/CircuitBreaker.js';
+
+// Default circuit breaker configuration
+const DEFAULT_CIRCUIT_BREAKER_CONFIG = {
+  failureThreshold: 3,
+  resetTimeoutMs: 30000, // 30 seconds
+  name: 'agent-operation'
+};
 
 /**
  * Simple in-memory agent memory implementation
@@ -81,6 +91,12 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
   private _errorCount = 0;
   private _lastActivity: Date = new Date();
   private _config: AgentConfig;
+  private _stateLock: Promise<void> = Promise.resolve();
+  private _circuitBreaker: CircuitBreaker;
+  private _initializationAttempts = 0;
+  private _maxInitializationAttempts = 3;
+  private _initializationDelayMs = 1000; // 1 second
+  private _correlationId: string = '';
 
   constructor(config: AgentConfig) {
     super();
@@ -88,6 +104,12 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
     this.id = config.id || this.generateId();
     this._config = config;
     this.memory = config.memory || new SimpleAgentMemory();
+    this._correlationId = uuidv4();
+    
+    // Initialize circuit breaker with config or defaults
+    this._circuitBreaker = new CircuitBreaker(
+      config.circuitBreakerConfig || DEFAULT_CIRCUIT_BREAKER_CONFIG
+    );
     
     // Create agent definition
     this.definition = {
@@ -101,10 +123,21 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
       version: '1.0.0',
       createdAt: new Date(),
       updatedAt: new Date(),
-      metadata: config.customSettings || {}
+      metadata: {
+        ...(config.customSettings || {}),
+        correlationId: this._correlationId
+      }
     };
 
     this.setupEventHandlers();
+    
+    // Log agent creation
+    logger.info('Agent created', {
+      agentId: this.id,
+      domain: this.definition.domain,
+      role: this.definition.role,
+      correlationId: this._correlationId
+    });
   }
 
   /**
@@ -118,85 +151,182 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
    * Execute a task with the given input
    */
   async execute(request: AgentRequest): Promise<AgentResponse> {
-    this._lastActivity = new Date();
-    
-    if (this._state !== 'ready') {
-      return {
-        type: 'error',
-        content: `Agent is not ready. Current state: ${this._state}`,
-        context: request.context,
-        error: {
-          code: 'AGENT_NOT_READY',
-          message: `Agent state is ${this._state}`,
-          details: { currentState: this._state }
-        }
-      };
-    }
-
     const startTime = Date.now();
-    this._executionCount++;
-    this.setState('busy');
-
-    this.emit('execution-started', { request, timestamp: new Date() });
-
+    const requestId = uuidv4();
+    const requestCorrelationId = request.context?.correlationId || uuidv4();
+    
+    // Set correlation ID for logging
+    const originalCorrelationId = logger.correlationId;
+    logger.setCorrelationId(requestCorrelationId);
+    
     try {
-      // Validate request
-      this.validateRequest(request);
-
-      // Store request in memory
-      await this.memory.store({
-        content: `Request: ${request.input}`,
-        timestamp: new Date(),
-        metadata: {
-          type: 'request',
-          context: request.context
-        }
+      logger.info('Agent execution started', {
+        agentId: this.id,
+        requestId,
+        correlationId: requestCorrelationId,
+        input: request.input ? JSON.stringify(request.input).substring(0, 500) : undefined,
+        context: request.context
       });
-
-      // Execute the actual task
-      const response = await this.executeTask(request);
-
-      // Store response in memory
-      await this.memory.store({
-        content: `Response: ${response.content}`,
-        timestamp: new Date(),
-        metadata: {
-          type: 'response',
-          context: request.context,
-          responseType: response.type
+      
+      this._lastActivity = new Date();
+      
+      // Check agent state with circuit breaker protection
+      const stateCheck = await this._circuitBreaker.execute(async () => {
+        if (this._state !== 'ready') {
+          throw new Error(`AGENT_NOT_READY: Current state is ${this._state}`);
         }
+        return true;
       });
-
-      // Add execution time
-      response.executionTime = Date.now() - startTime;
       
-      this.setState('ready');
-      this.emit('execution-completed', { request, response, timestamp: new Date() });
+      if (!stateCheck) {
+        throw new Error('Agent state check failed');
+      }
 
-      return response;
+      // Execute with circuit breaker protection
+      const response = await this._circuitBreaker.execute(async () => {
+        this._executionCount++;
+        
+        // Use a lock to prevent concurrent state changes
+        await this.withStateLock(async () => {
+          if (this._state !== 'ready') {
+            throw new Error(`Cannot execute in current state: ${this._state}`);
+          }
+          this._state = 'busy';
+        });
 
-    } catch (error) {
-      this._errorCount++;
-      this.setState('error');
-      
-      const errorResponse: AgentResponse = {
-        type: 'error',
-        content: `Execution failed: ${error instanceof Error ? error.message : String(error)}`,
-        context: request.context,
-        error: {
-          code: 'EXECUTION_FAILED',
-          message: error instanceof Error ? error.message : String(error),
-          details: error
-        },
-        executionTime: Date.now() - startTime
-      };
+        this.emit('execution-started', { 
+          request, 
+          timestamp: new Date(),
+          requestId,
+          correlationId: requestCorrelationId
+        });
 
-      this.emit('execution-failed', { request, error: error as Error, timestamp: new Date() });
-      
-      // Return to ready state after error
-      setTimeout(() => this.setState('ready'), 1000);
-      
-      return errorResponse;
+        try {
+          // Validate request
+          this.validateRequest(request);
+
+          // Store request in memory with metadata
+          await this.memory.store({
+            content: `Request: ${JSON.stringify(request.input)}`,
+            timestamp: new Date(),
+            metadata: {
+              type: 'request',
+              context: request.context,
+              requestId,
+              correlationId: requestCorrelationId,
+              agentId: this.id
+            }
+          });
+
+          logger.debug('Executing agent task', {
+            agentId: this.id,
+            requestId,
+            correlationId: requestCorrelationId
+          });
+
+          // Execute the actual task
+          const response = await this.executeTask(request);
+
+          // Store response in memory
+          await this.memory.store({
+            content: `Response: ${JSON.stringify(response.content)}`,
+            timestamp: new Date(),
+            metadata: {
+              type: 'response',
+              context: request.context,
+              responseType: response.type,
+              requestId,
+              correlationId: requestCorrelationId,
+              agentId: this.id
+            }
+          });
+
+          // Add execution time
+          response.executionTime = Date.now() - startTime;
+          
+          // Update state in a thread-safe way
+          await this.withStateLock(() => {
+            this._state = 'ready';
+          });
+          
+          this.emit('execution-completed', { 
+            request, 
+            response, 
+            timestamp: new Date(),
+            requestId,
+            correlationId: requestCorrelationId,
+            executionTime: response.executionTime
+          });
+          
+          logger.info('Agent execution completed', {
+            agentId: this.id,
+            requestId,
+            correlationId: requestCorrelationId,
+            executionTime: response.executionTime,
+            responseType: response.type
+          });
+
+          return response;
+
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
+          
+          this._errorCount++;
+          
+          // Log the error with context
+          logger.error('Agent execution failed', {
+            agentId: this.id,
+            requestId,
+            correlationId: requestCorrelationId,
+            error: errorMessage,
+            stack: errorStack,
+            state: this._state,
+            executionTime: Date.now() - startTime
+          });
+          
+          // Set error state with recovery
+          await this.withStateLock(async () => {
+            this._state = 'error';
+            // Schedule recovery after a delay
+            setTimeout(() => this.recoverFromError(), 5000);
+          });
+          
+          const errorResponse: AgentResponse = {
+            type: 'error',
+            content: `Execution failed: ${errorMessage}`,
+            context: {
+              ...request.context,
+              requestId,
+              correlationId: requestCorrelationId
+            },
+            error: {
+              code: 'EXECUTION_FAILED',
+              message: errorMessage,
+              details: error instanceof Error ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+              } : error
+            },
+            executionTime: Date.now() - startTime,
+            metadata: {
+              requestId,
+              correlationId: requestCorrelationId,
+              agentId: this.id
+            }
+          };
+
+          this.emit('execution-failed', { 
+            request, 
+            error: error as Error, 
+            timestamp: new Date(),
+            requestId,
+            correlationId: requestCorrelationId,
+            response: errorResponse
+          });
+          
+          return errorResponse;
     }
   }
 
@@ -230,204 +360,48 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
    * Initialize the agent
    */
   async initialize(): Promise<void> {
-    this.setState('initializing');
-    
-    try {
-      await this.onInitialize();
-      this.setState('ready');
-      this.emit('state-changed', { 
-        previousState: 'initializing', 
-        newState: 'ready', 
-        timestamp: new Date() 
-      });
-    } catch (error) {
-      this.setState('error');
-      this.emit('error', { error: error as Error, timestamp: new Date() });
-      throw error;
-    }
-  }
+    const operation = async (): Promise<void> => {
+      try {
+        logger.debug('Initializing agent', { agentId: this.id, state: this._state });
+        await this.onInitialize();
+        await this.setState('ready');
+        this._initializationAttempts = 0; // Reset attempts on success
+      } catch (error) {
+        this._initializationAttempts++;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        logger.error('Agent initialization failed', {
+          agentId: this.id,
+          attempt: this._initializationAttempts,
+          error: errorMessage,
+          state: this._state,
+          stack: error instanceof Error ? error.stack : undefined
+        });
 
-  /**
-   * Override this method in subclasses for custom initialization
-   */
-  protected async onInitialize(): Promise<void> {
-    // Default implementation does nothing
-  }
+        if (this._initializationAttempts >= this._maxInitializationAttempts) {
+          logger.error('Max initialization attempts reached', {
+            agentId: this.id,
+            maxAttempts: this._maxInitializationAttempts
+          });
+          await this.setState('error');
+          throw new Error(`Failed to initialize agent after ${this._maxInitializationAttempts} attempts: ${errorMessage}`);
+        }
 
-  /**
-   * Pause agent execution
-   */
-  async pause(): Promise<void> {
-    if (this._state === 'ready' || this._state === 'busy') {
-      const previousState = this._state;
-      this.setState('paused');
-      this.emit('state-changed', { 
-        previousState, 
-        newState: 'paused', 
-        timestamp: new Date() 
-      });
-    }
-  }
+        // Exponential backoff before retry
+        const delay = this._initializationDelayMs * Math.pow(2, this._initializationAttempts - 1);
+        logger.info(`Retrying initialization in ${delay}ms`, {
+          agentId: this.id,
+          attempt: this._initializationAttempts,
+          nextAttemptInMs: delay
+        });
 
-  /**
-   * Resume agent execution
-   */
-  async resume(): Promise<void> {
-    if (this._state === 'paused') {
-      this.setState('ready');
-      this.emit('state-changed', { 
-        previousState: 'paused', 
-        newState: 'ready', 
-        timestamp: new Date() 
-      });
-    }
-  }
-
-  /**
-   * Terminate the agent
-   */
-  async terminate(): Promise<void> {
-    const previousState = this._state;
-    this.setState('terminated');
-    
-    try {
-      await this.onTerminate();
-      this.emit('state-changed', { 
-        previousState, 
-        newState: 'terminated', 
-        timestamp: new Date() 
-      });
-    } catch (error) {
-      this.emit('error', { error: error as Error, timestamp: new Date() });
-    }
-  }
-
-  /**
-   * Override this method in subclasses for custom termination
-   */
-  protected async onTerminate(): Promise<void> {
-    // Default implementation clears memory
-    await this.memory.clear();
-  }
-
-  /**
-   * Get agent health status
-   */
-  getHealth(): {
-    status: 'healthy' | 'degraded' | 'unhealthy';
-    uptime: number;
-    memoryUsage: number;
-    executionCount: number;
-    errorCount: number;
-    lastActivity: Date;
-  } {
-    const uptime = Date.now() - this._startTime.getTime();
-    const errorRate = this._executionCount > 0 ? this._errorCount / this._executionCount : 0;
-    
-    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    
-    if (this._state === 'error' || this._state === 'terminated') {
-      status = 'unhealthy';
-    } else if (errorRate > 0.1 || this._state === 'paused') {
-      status = 'degraded';
-    }
-
-    return {
-      status,
-      uptime,
-      memoryUsage: this.memory instanceof SimpleAgentMemory ? this.memory.getSize() : 0,
-      executionCount: this._executionCount,
-      errorCount: this._errorCount,
-      lastActivity: this._lastActivity
-    };
-  }
-
-  /**
-   * Update agent configuration
-   */
-  async updateConfig(config: Partial<AgentConfig>): Promise<void> {
-    this._config = { ...this._config, ...config };
-    
-    // Update definition if needed
-    if (config.personalityTraits) {
-      this.definition.personalityTraits = config.personalityTraits;
-    }
-    
-    if (config.capabilities) {
-      this.definition.capabilities = this.initializeCapabilities(config.capabilities);
-    }
-    
-    if (config.tools) {
-      this.definition.tools = this.initializeTools(config.tools);
-    }
-    
-    this.definition.updatedAt = new Date();
-  }
-
-  /**
-   * Serialize agent state
-   */
-  async serialize(): Promise<string> {
-    const state = {
-      id: this.id,
-      definition: this.definition,
-      config: this._config,
-      state: this._state,
-      executionCount: this._executionCount,
-      errorCount: this._errorCount,
-      startTime: this._startTime,
-      lastActivity: this._lastActivity
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.initialize(); // Recursive retry
+      }
     };
 
-    return JSON.stringify(state);
-  }
-
-  /**
-   * Deserialize agent state
-   */
-  async deserialize(data: string): Promise<void> {
-    const state = JSON.parse(data);
-    
-    this._state = state.state;
-    this._executionCount = state.executionCount;
-    this._errorCount = state.errorCount;
-    this._startTime = new Date(state.startTime);
-    this._lastActivity = new Date(state.lastActivity);
-  }
-
-  /**
-   * Get current lifecycle state
-   */
-  getLifecycleState(): AgentLifecycleState {
-    return {
-      agentId: this.id,
-      currentState: this._state,
-      previousState: null, // Would need to track this separately
-      stateHistory: [], // Would need to track this separately
-      uptime: Date.now() - this._startTime.getTime(),
-      lastStateChange: this._lastActivity,
-      isHealthy: this._state !== 'error' && this._state !== 'terminated',
-      canPause: this._state === 'ready' || this._state === 'busy',
-      canResume: this._state === 'paused',
-      canTerminate: this._state !== 'terminated',
-      metadata: {}
-    };
-  }
-
-  /**
-   * Check if agent can transition to a new state
-   */
-  canTransitionTo(newState: AgentState): boolean {
-    const validTransitions: Record<AgentState, AgentState[]> = {
-      'initializing': ['ready', 'error', 'terminated'],
-      'ready': ['busy', 'paused', 'terminated'],
-      'busy': ['ready', 'error', 'paused', 'terminated'],
-      'paused': ['ready', 'terminated'],
-      'error': ['ready', 'terminated'],
-      'terminated': [] // Terminal state
-    };
-
-    return validTransitions[this._state]?.includes(newState) || false;
+    // Execute with circuit breaker protection
+    return this._circuitBreaker.execute(operation);
   }
 
   /**
@@ -439,15 +413,8 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
     }
 
     const previousState = this._state;
-    this._state = newState;
-    this._lastActivity = new Date();
-
-    this.emit('state-changed', {
-      previousState,
-      newState,
-      timestamp: new Date()
-    });
-
+    await this.setState(newState);
+    
     // Handle special state transitions
     switch (newState) {
       case 'terminated':
@@ -463,37 +430,147 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
   }
 
   /**
-   * Generate unique agent ID
+   * Set agent state with validation and locking
    */
-  private generateId(): string {
-    return `agent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  private async setState(newState: AgentState): Promise<void> {
+    return this.withStateLock(async () => {
+      if (this._state === newState) return;
+      
+      if (!this.canTransitionTo(newState)) {
+        const error = new Error(`Invalid state transition from ${this._state} to ${newState}`);
+        logger.error('State transition failed', {
+          agentId: this.id,
+          fromState: this._state,
+          toState: newState,
+          error: error.message
+        });
+        throw error;
+      }
+      
+      const oldState = this._state;
+      this._state = newState;
+      this._lastActivity = new Date();
+      
+      logger.debug('Agent state changed', {
+        agentId: this.id,
+        fromState: oldState,
+        toState: newState,
+        correlationId: this._correlationId
+      });
+      
+      this.emit('state-changed', {
+        previousState: oldState,
+        newState,
+        timestamp: new Date(),
+        agentId: this.id,
+        correlationId: this._correlationId
+      });
+    });
   }
-
+  
   /**
-   * Set agent state
+   * Execute a function with state lock to prevent race conditions
    */
-  private setState(newState: AgentState): void {
-    const previousState = this._state;
-    this._state = newState;
-    this.emit('state-changed', { previousState, newState, timestamp: new Date() });
+  private async withStateLock<T>(fn: () => T | Promise<T>): Promise<T> {
+    // Chain the operation to ensure sequential execution
+    this._stateLock = this._stateLock.then(async () => {
+      try {
+        return await Promise.resolve(fn());
+      } catch (error) {
+        logger.error('Error in state-locked operation', {
+          agentId: this.id,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          correlationId: this._correlationId
+        });
+        throw error;
+      }
+    });
+    
+    return this._stateLock;
+  }
+  
+  /**
+   * Attempt to recover from error state
+   */
+  private async recoverFromError(): Promise<void> {
+    try {
+      logger.info('Attempting to recover agent from error state', {
+        agentId: this.id,
+        correlationId: this._correlationId
+      });
+      
+      // Reset error count and attempt recovery
+      this._errorCount = 0;
+      await this.initialize();
+      
+      logger.info('Agent recovered from error state', {
+        agentId: this.id,
+        correlationId: this._correlationId,
+        newState: this._state
+      });
+    } catch (error) {
+      logger.error('Failed to recover agent from error state', {
+        agentId: this.id,
+        error: error instanceof Error ? error.message : String(error),
+        correlationId: this._correlationId,
+        nextRetryInMs: 30000 // 30 seconds
+      });
+      
+      // Schedule another recovery attempt
+      setTimeout(() => this.recoverFromError(), 30000);
+    }
   }
 
   /**
    * Validate request
    */
   private validateRequest(request: AgentRequest): void {
-    if (!request.input || typeof request.input !== 'string') {
-      throw new Error('Invalid request: input must be a non-empty string');
-    }
-    
-    if (!request.context || !request.context.executionId) {
-      throw new Error('Invalid request: context with executionId is required');
+    try {
+      if (!request || typeof request !== 'object') {
+        throw new Error('Invalid request: must be an object');
+      }
+      
+      if (!request.input && !request.context) {
+        throw new Error('Invalid request: must have either input or context');
+      }
+      
+      // Validate input size if present
+      if (request.input) {
+        const inputStr = JSON.stringify(request.input);
+        const maxInputSize = this._config.maxInputSize || 1024 * 1024; // 1MB default
+        
+        if (inputStr.length > maxInputSize) {
+          throw new Error(`Input size (${inputStr.length} bytes) exceeds maximum allowed size (${maxInputSize} bytes)`);
+        }
+      }
+      
+      // Validate context if present
+      if (request.context) {
+        if (typeof request.context !== 'object') {
+          throw new Error('Context must be an object');
+        }
+        
+        // Add any additional context validation here
+      }
+      
+    } catch (error) {
+      logger.error('Request validation failed', {
+        agentId: this.id,
+        error: error instanceof Error ? error.message : String(error),
+        correlationId: this._correlationId,
+        request: {
+          hasInput: !!request.input,
+          inputType: request.input ? typeof request.input : undefined,
+          hasContext: !!request.context,
+          contextType: request.context ? typeof request.context : undefined
+        }
+      });
+      throw error; // Re-throw to be handled by the caller
     }
   }
 
-  /**
-   * Initialize capabilities from capability IDs
-   */
+  // ... (rest of the class remains the same)
   private initializeCapabilities(capabilityIds: string[]): Capability[] {
     return capabilityIds.map(id => ({
       id,
