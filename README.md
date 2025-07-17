@@ -9,6 +9,7 @@ This repository contains the **Convergio CLI**, a comprehensive Universal AI Age
 ## 🚀 Key Features
 
 ### Core Platform Capabilities
+- **🔄 Agent Lifecycle Management**: Robust agent state management with [advanced error handling and recovery](./docs/core/agent-lifecycle-manager.md)
 - **🤖 Multi-Agent Orchestration**: Dynamically create and coordinate specialized AI agents for complex tasks
 - **🧠 Intelligent Task Decomposition**: Automatically break down complex requests using Task-Master-AI integration
 - **💭 Advanced Memory & Context Engine**: Cross-agent memory sharing with vector database integration

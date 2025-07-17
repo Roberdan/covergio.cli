@@ -5,659 +5,834 @@
  */
 
 import { EventEmitter } from 'events';
-import { IAgent, AgentState } from './types.js';
-import {
-  IAgentLifecycleManager,
-  AgentLifecycleState,
-  StateTransition,
-  AgentLifecycleInfo,
-  AgentHealthMetrics,
-  ResourceUsageMetrics,
-  ResourceLimits,
-  SerializedAgentState,
-  LifecycleStatistics,
-  HealthAlert
-} from './interfaces.js';
+import { v4 as uuidv4 } from 'uuid';
+import { 
+  IAgent, 
+  AgentState, 
+  AgentConfig, 
+  AgentEvents, 
+  AgentHealthStatus,
+  AgentResourceUsage,
+  AgentPerformanceMetrics
+} from './types.js';
+import { IAgentLifecycle } from './interfaces.js';
+import { logger } from '../../utils/Logger.js';
+import { CircuitBreaker } from '../../utils/CircuitBreaker.js';
+
+// Default resource limits
+const DEFAULT_RESOURCE_LIMITS = {
+  maxMemoryMB: 500, // 500MB
+  maxExecutionTimeMs: 30000, // 30 seconds
+  maxConcurrentRequests: 10,
+  rateLimitPerMinute: 100
+};
+
+// Default circuit breaker configuration
+const DEFAULT_CIRCUIT_BREAKER_CONFIG = {
+  failureThreshold: 5,
+  resetTimeoutMs: 60000, // 1 minute
+  name: 'agent-lifecycle-manager'
+};
 
 /**
  * Agent lifecycle manager implementation
  */
-export class AgentLifecycleManager extends EventEmitter implements IAgentLifecycleManager {
-  private managedAgents = new Map<string, IAgent>();
-  private lifecycleStates = new Map<string, AgentLifecycleState>();
-  private resourceLimits: ResourceLimits;
-  private healthMonitoringEnabled = true;
-  private healthMonitoringInterval = 30000; // 30 seconds
-  private healthMonitoringTimer: NodeJS.Timeout | null = null;
-  private performanceMetrics = new Map<string, PerformanceTracker>();
-
-  constructor(config?: AgentLifecycleManagerConfig) {
-    super();
-
-    // Set default resource limits
-    this.resourceLimits = {
-      memory: { maxUsage: 512, unit: 'MB' },
-      cpu: { maxUsage: 80, unit: 'percent' },
-      storage: { maxUsage: 1024, unit: 'MB' },
-      executionTime: { maxDuration: 300000, unit: 'milliseconds' },
-      concurrency: { maxConcurrentTasks: 5 }
-    };
-
-    if (config?.resourceLimits) {
-      this.resourceLimits = { ...this.resourceLimits, ...config.resourceLimits };
+export class AgentLifecycleManager extends EventEmitter {
+  private agents: Map<string, IAgent> = new Map();
+  private agentStates: Map<string, AgentState> = new Map();
+  private agentHealth: Map<string, AgentHealthStatus> = new Map();
+  private resourceUsage: Map<string, AgentResourceUsage> = new Map();
+  private performanceMetrics: Map<string, AgentPerformanceMetrics> = new Map();
+  private circuitBreaker: CircuitBreaker;
+  private resourceLimits: typeof DEFAULT_RESOURCE_LIMITS;
+  private isShuttingDown: boolean = false;
+  private maintenanceInterval?: NodeJS.Timeout;
+  private readonly MAINTENANCE_INTERVAL_MS = 30000; // 30 seconds
+  
+  /**
+   * Normalize error objects for consistent handling
+   */
+  private normalizeError(error: unknown): { message: string; stack?: string; code?: string; cause?: unknown } {
+    if (error instanceof Error) {
+      return {
+        message: error.message,
+        stack: error.stack,
+        ...(error as any).code && { code: (error as any).code },
+        ...(error as any).cause && { cause: (error as any).cause }
+      };
     }
+    return { message: String(error) };
+  }
+  
+  /**
+   * Sanitize context object to prevent circular references
+   */
+  private sanitizeContext(context: unknown): Record<string, unknown> {
+    try {
+      if (!context || typeof context !== 'object') {
+        return {};
+      }
+      
+      // Simple sanitization to prevent circular references
+      const sanitized: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(context)) {
+        if (value === undefined || value === null) continue;
+        if (typeof value === 'function') continue;
+        
+        if (typeof value === 'object' && !Array.isArray(value)) {
+          sanitized[key] = { ...value };
+        } else {
+          sanitized[key] = value;
+        }
+      }
+      return sanitized;
+    } catch (error) {
+      return { sanitizationError: 'Failed to sanitize context' };
+    }
+  }
+  
+  /**
+   * Update agent health status with error information
+   */
+  private updateAgentHealthStatus(
+    agentId: string, 
+    options: { 
+      error: unknown; 
+      timestamp: Date; 
+      errorId: string; 
+      isRecoverable: boolean 
+    }
+  ): void {
+    const { error, timestamp, errorId, isRecoverable } = options;
+    const normalizedError = this.normalizeError(error);
+    const currentHealth = this.agentHealth.get(agentId) || { status: 'unknown' };
+    const errorCount = (currentHealth.errorCount || 0) + 1;
+    
+    this.agentHealth.set(agentId, {
+      ...currentHealth,
+      status: isRecoverable ? 'degraded' : 'unhealthy',
+      lastError: {
+        id: errorId,
+        message: normalizedError.message,
+        timestamp,
+        stack: normalizedError.stack,
+        isRecoverable,
+        ...(normalizedError.code && { code: normalizedError.code }),
+        ...(normalizedError.cause && { cause: normalizedError.cause })
+      },
+      errorCount,
+      lastChecked: timestamp,
+      errorRate: this.calculateErrorRate(agentId, errorCount),
+      lastUpdated: timestamp,
+      isRecoverable
+    });
+  }
+  
+  /**
+   * Emit agent error event with proper typing
+   */
+  private emitAgentErrorEvent(event: {
+    agentId: string;
+    error: unknown;
+    timestamp: Date;
+    errorId: string;
+    correlationId: string;
+    context: Record<string, unknown>;
+  }): void {
+    const normalizedError = this.normalizeError(event.error);
+    
+    this.emit('agent-error', {
+      agentId: event.agentId,
+      error: new Error(normalizedError.message, { cause: event.error }),
+      timestamp: event.timestamp,
+      errorId: event.errorId,
+      correlationId: event.correlationId,
+      context: event.context
+    });
+  }
+  
+  /**
+   * Attempt to recover an agent from an error state
+   */
+  private async attemptAgentRecovery(
+    agentId: string,
+    options: {
+      error: unknown;
+      errorId: string;
+      correlationId: string;
+      context: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    const { error, errorId, correlationId, context } = options;
+    const normalizedError = this.normalizeError(error);
+    
+    logger.info('Attempting agent recovery', {
+      agentId,
+      errorId,
+      correlationId,
+      error: normalizedError.message
+    });
+    
+    try {
+      // Implement recovery logic here
+      // For example: Reset agent state, clear caches, etc.
+      
+      // Emit recovery event
+      this.emit('agent-recovery-attempt', {
+        agentId,
+        errorId,
+        correlationId,
+        timestamp: new Date(),
+        success: true
+      });
+      
+    } catch (recoveryError) {
+      const normalizedRecoveryError = this.normalizeError(recoveryError);
+      
+      logger.error('Agent recovery failed', {
+        agentId,
+        errorId,
+        correlationId,
+        originalError: normalizedError.message,
+        recoveryError: normalizedRecoveryError.message
+      });
+      
+      // Emit recovery failure event
+      this.emit('agent-recovery-failed', {
+        agentId,
+        errorId,
+        correlationId,
+        timestamp: new Date(),
+        error: normalizedRecoveryError,
+        context
+      });
+      
+      throw recoveryError;
+    }
+  }
+  
+  /**
+   * Handle critical errors that cannot be recovered from
+   */
+  private handleCriticalError(
+    agentId: string,
+    options: {
+      error: unknown;
+      errorId: string;
+      correlationId: string;
+      context: Record<string, unknown>;
+    }
+  ): void {
+    const { error, errorId, correlationId, context } = options;
+    const normalizedError = this.normalizeError(error);
+    
+    logger.fatal('Critical agent error - initiating emergency procedures', {
+      agentId,
+      errorId,
+      correlationId,
+      error: normalizedError.message,
+      stack: normalizedError.stack
+    });
+    
+    // Emit critical error event
+    this.emit('agent-critical-error', {
+      agentId,
+      error: new Error(normalizedError.message, { cause: error }),
+      errorId,
+      correlationId,
+      timestamp: new Date(),
+      context
+    });
+    
+    // Attempt to gracefully terminate the agent
+    this.terminateAgent(agentId, {
+      emergency: true,
+      reason: 'critical_error',
+      error: normalizedError.message
+    }).catch(terminationError => {
+      logger.error('Failed to terminate agent after critical error', {
+        agentId,
+        errorId,
+        correlationId,
+        terminationError: this.normalizeError(terminationError).message
+      });
+    });
+  }
+  
+  /**
+   * Calculate error rate for an agent
+   */
+  private calculateErrorRate(agentId: string, newErrorCount?: number): number {
+    const metrics = this.performanceMetrics.get(agentId);
+    if (!metrics) return 0;
+    
+    const totalRequests = metrics.requestCount || 1; // Avoid division by zero
+    const errorCount = newErrorCount !== undefined ? newErrorCount : metrics.errorCount || 0;
+    
+    return Math.min(1, errorCount / totalRequests);
+  }
+  
+  /**
+   * Check if an error is recoverable
+   */
+  private isRecoverableError(error: unknown): boolean {
+    if (!(error instanceof Error)) return true;
+    
+    // Non-recoverable error codes
+    const FATAL_ERROR_CODES = [
+      'ENOMEM',      // Out of memory
+      'EACCES',      // Permission denied
+      'EADDRINUSE',  // Port already in use
+      'ECONNREFUSED' // Connection refused
+    ];
+    
+    // Check error code
+    if ((error as any).code && FATAL_ERROR_CODES.includes((error as any).code)) {
+      return false;
+    }
+    
+    // Check error message for fatal patterns
+    const FATAL_ERROR_PATTERNS = [
+      /out of memory/i,
+      /fatal error/i,
+      /unrecoverable/i,
+      /corrupted state/i
+    ];
+    
+    return !FATAL_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
+  }
 
-    this.startHealthMonitoring();
+  constructor(resourceLimits: Partial<typeof DEFAULT_RESOURCE_LIMITS> = {}) {
+    super();
+    
+    this.resourceLimits = { ...DEFAULT_RESOURCE_LIMITS, ...resourceLimits };
+    this.circuitBreaker = new CircuitBreaker({
+      ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
+      name: 'agent-lifecycle-manager'
+    });
+    
+    // Start maintenance tasks
+    this.startMaintenance();
+    
+    logger.info('AgentLifecycleManager initialized', {
+      resourceLimits: this.resourceLimits,
+      circuitBreakerConfig: DEFAULT_CIRCUIT_BREAKER_CONFIG
+    });
   }
 
   /**
    * Register an agent for lifecycle management
    */
   async registerAgent(agent: IAgent): Promise<void> {
-    const agentId = agent.id;
-    
-    if (this.managedAgents.has(agentId)) {
-      throw new Error(`Agent ${agentId} is already registered`);
-    }
+    const operation = async () => {
+      const agentId = agent.id;
+      
+      try {
+        logger.info('Registering agent', { agentId });
+        
+        if (this.agents.has(agentId)) {
+          const error = new Error(`Agent with ID ${agentId} is already registered`);
+          logger.error('Agent registration failed', { agentId, error: error.message });
+          throw error;
+        }
 
-    this.managedAgents.set(agentId, agent);
-    
-    // Initialize lifecycle state
-    const lifecycleState: AgentLifecycleState = {
-      agentId,
-      currentState: agent.state,
-      previousState: null,
-      stateHistory: [],
-      uptime: 0,
-      lastStateChange: new Date(),
-      isHealthy: true,
-      canPause: agent.state === 'ready' || agent.state === 'busy',
-      canResume: agent.state === 'paused',
-      canTerminate: agent.state !== 'terminated',
-      metadata: {}
+        // Check resource limits before registering
+        await this.checkResourceLimits(agentId);
+        
+        // Register the agent
+        this.agents.set(agentId, agent);
+        this.agentStates.set(agentId, 'initializing');
+        this.agentHealth.set(agentId, { 
+          status: 'healthy', 
+          lastChecked: new Date(),
+          uptime: 0,
+          errorRate: 0,
+          metrics: {}
+        });
+        
+        // Initialize performance metrics
+        this.initializePerformanceMetrics(agentId);
+        
+        // Set up event listeners with proper error handling
+        agent.on('state-changed', this.handleAgentStateChange.bind(this, agentId));
+        agent.on('error', this.handleAgentError.bind(this, agentId));
+        agent.on('execution-started', this.handleExecutionStart.bind(this, agentId));
+        agent.on('execution-completed', this.handleExecutionComplete.bind(this, agentId));
+        agent.on('execution-failed', this.handleExecutionFail.bind(this, agentId));
+        
+        logger.debug('Agent event listeners registered', { agentId });
+        
+        // Initialize the agent with circuit breaker protection
+        await this.initializeAgent(agentId);
+        
+        logger.info('Agent registered successfully', { agentId, state: 'initializing' });
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to register agent', { 
+          agentId: agent.id, 
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        
+        // Clean up if registration fails
+        this.cleanupAgent(agent.id);
+        throw error;
+      }
     };
-
-    this.lifecycleStates.set(agentId, lifecycleState);
     
-    // Initialize performance tracking
-    this.performanceMetrics.set(agentId, new PerformanceTracker());
-
-    // Set up event listeners for the agent
-    this.setupAgentEventListeners(agent);
-
-    this.emit('agent-registered', { agentId, agent });
+    // Execute with circuit breaker protection
+    return this.circuitBreaker.execute(operation);
   }
 
   /**
    * Unregister an agent from lifecycle management
    */
   async unregisterAgent(agentId: string): Promise<void> {
-    const agent = this.managedAgents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent ${agentId} is not registered`);
-    }
-
-    // Terminate agent if not already terminated
-    if (agent.state !== 'terminated') {
-      await this.terminateAgent(agentId);
-    }
-
-    this.managedAgents.delete(agentId);
-    this.lifecycleStates.delete(agentId);
-    this.performanceMetrics.delete(agentId);
-
-    this.emit('agent-unregistered', { agentId });
-  }
-
-  /**
-   * Get lifecycle state for an agent
-   */
-  async getAgentLifecycleState(agentId: string): Promise<AgentLifecycleState | null> {
-    const state = this.lifecycleStates.get(agentId);
-    if (!state) {
-      return null;
-    }
-
-    // Update uptime
-    state.uptime = Date.now() - state.lastStateChange.getTime();
-    
-    return { ...state };
-  }
-
-  /**
-   * Pause an agent
-   */
-  async pauseAgent(agentId: string): Promise<void> {
-    const agent = this.managedAgents.get(agentId);
-    const lifecycleState = this.lifecycleStates.get(agentId);
-    
-    if (!agent || !lifecycleState) {
-      throw new Error(`Agent ${agentId} is not registered`);
-    }
-
-    if (!lifecycleState.canPause) {
-      throw new Error(`Agent ${agentId} cannot be paused in current state: ${agent.state}`);
-    }
-
-    await agent.pause();
-    this.updateAgentState(agentId, agent.state, 'Manual pause request');
-  }
-
-  /**
-   * Resume an agent
-   */
-  async resumeAgent(agentId: string): Promise<void> {
-    const agent = this.managedAgents.get(agentId);
-    const lifecycleState = this.lifecycleStates.get(agentId);
-    
-    if (!agent || !lifecycleState) {
-      throw new Error(`Agent ${agentId} is not registered`);
-    }
-
-    if (!lifecycleState.canResume) {
-      throw new Error(`Agent ${agentId} cannot be resumed in current state: ${agent.state}`);
-    }
-
-    await agent.resume();
-    this.updateAgentState(agentId, agent.state, 'Manual resume request');
-  }
-
-  /**
-   * Terminate an agent
-   */
-  async terminateAgent(agentId: string): Promise<void> {
-    const agent = this.managedAgents.get(agentId);
-    const lifecycleState = this.lifecycleStates.get(agentId);
-    
-    if (!agent || !lifecycleState) {
-      throw new Error(`Agent ${agentId} is not registered`);
-    }
-
-    if (!lifecycleState.canTerminate) {
-      throw new Error(`Agent ${agentId} cannot be terminated in current state: ${agent.state}`);
-    }
-
-    await agent.terminate();
-    this.updateAgentState(agentId, agent.state, 'Manual termination request');
-  }
-
-  /**
-   * Get all managed agents
-   */
-  async getManagedAgents(): Promise<AgentLifecycleInfo[]> {
-    const agents: AgentLifecycleInfo[] = [];
-
-    for (const [agentId, agent] of this.managedAgents) {
-      const lifecycleState = this.lifecycleStates.get(agentId);
-      if (lifecycleState) {
-        agents.push({
-          agentId,
-          definition: {
-            domain: agent.definition.domain,
-            role: agent.definition.role,
-            version: agent.definition.version
-          },
-          state: agent.state,
-          health: await this.calculateHealthMetrics(agentId),
-          resources: await this.calculateResourceUsage(agentId),
-          uptime: Date.now() - lifecycleState.lastStateChange.getTime(),
-          createdAt: agent.definition.createdAt,
-          lastActivity: new Date(), // Would come from agent metrics
-          metadata: lifecycleState.metadata
-        });
+    try {
+      logger.info('Unregistering agent', { agentId });
+      
+      // Check if agent is registered
+      if (!this.agents.has(agentId)) {
+        logger.error('Agent not registered', { agentId });
+        return;
       }
+      
+      // Unregister the agent
+      this.agents.delete(agentId);
+      this.agentStates.delete(agentId);
+      this.agentHealth.delete(agentId);
+      this.resourceUsage.delete(agentId);
+      this.performanceMetrics.delete(agentId);
+      
+      logger.info('Agent unregistered successfully', { agentId });
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to unregister agent', { 
+        agentId, 
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
-
-    return agents;
-  }
-
-  /**
-   * Get agents by state
-   */
-  async getAgentsByState(state: AgentState): Promise<AgentLifecycleInfo[]> {
-    const allAgents = await this.getManagedAgents();
-    return allAgents.filter(agent => agent.state === state);
-  }
-
-  /**
-   * Serialize agent state for persistence
-   */
-  async serializeAgent(agentId: string): Promise<SerializedAgentState> {
-    const agent = this.managedAgents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent ${agentId} is not registered`);
-    }
-
-    const agentSerialized = await agent.serialize();
-    const lifecycleState = this.lifecycleStates.get(agentId);
-    const performanceTracker = this.performanceMetrics.get(agentId);
-
-    return {
-      agentId,
-      definition: agent.definition,
-      config: JSON.parse(agentSerialized), // Assuming agent.serialize() returns JSON
-      state: agent.state,
-      memory: agentSerialized,
-      personalityState: {},
-      capabilityStates: {},
-      executionStats: {
-        executionCount: performanceTracker?.executionCount || 0,
-        errorCount: performanceTracker?.errorCount || 0,
-        startTime: agent.definition.createdAt,
-        lastActivity: new Date()
-      },
-      metadata: lifecycleState?.metadata || {},
-      version: agent.definition.version,
-      serializedAt: new Date()
-    };
-  }
-
-  /**
-   * Deserialize and restore agent state
-   */
-  async deserializeAgent(serializedState: SerializedAgentState): Promise<IAgent> {
-    throw new Error('Deserialize agent not implemented - requires agent factory integration');
-  }
-
-  /**
-   * Monitor agent health and performance
-   */
-  async monitorAgent(agentId: string): Promise<AgentHealthMetrics> {
-    const agent = this.managedAgents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent ${agentId} is not registered`);
-    }
-
-    return this.calculateHealthMetrics(agentId);
   }
 
   /**
    * Get resource usage for an agent
    */
-  async getResourceUsage(agentId: string): Promise<ResourceUsageMetrics> {
-    const agent = this.managedAgents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent ${agentId} is not registered`);
+  async getResourceUsage(agentId: string): AgentResourceUsage {
+    try {
+      const usage = this.resourceUsage.get(agentId) || {};
+      const metrics = this.performanceMetrics.get(agentId);
+      
+      // Calculate current memory usage
+      const memoryUsage = process.memoryUsage();
+      
+      return {
+        ...usage,
+        memory: {
+          rss: memoryUsage.rss,
+          heapTotal: memoryUsage.heapTotal,
+          heapUsed: memoryUsage.heapUsed,
+          external: memoryUsage.external,
+          arrayBuffers: memoryUsage.arrayBuffers
+        },
+        cpu: {
+          // Placeholder for CPU usage metrics
+          user: 0,
+          system: 0
+        },
+        lastUpdated: new Date(),
+        metrics: metrics ? {
+          avgResponseTime: metrics.avgResponseTime,
+          requestCount: metrics.requestCount,
+          errorRate: metrics.errorRate,
+          activeRequests: metrics.activeRequests
+        } : undefined
+      };
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error getting resource usage', {
+        agentId,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      return {
+        status: 'error',
+        error: errorMessage,
+        lastUpdated: new Date()
+      };
     }
-
-    return this.calculateResourceUsage(agentId);
   }
 
   /**
-   * Cleanup terminated agents
+   * Get agent state
    */
-  async cleanupTerminatedAgents(): Promise<number> {
-    const terminatedAgents = Array.from(this.managedAgents.entries())
-      .filter(([_, agent]) => agent.state === 'terminated');
-
-    for (const [agentId, _] of terminatedAgents) {
-      await this.unregisterAgent(agentId);
-    }
-
-    return terminatedAgents.length;
-  }
-
-  /**
-   * Get lifecycle statistics
-   */
-  async getLifecycleStatistics(): Promise<LifecycleStatistics> {
-    const allAgents = await this.getManagedAgents();
-    
-    const agentsByState = allAgents.reduce((acc, agent) => {
-      acc[agent.state] = (acc[agent.state] || 0) + 1;
-      return acc;
-    }, {} as Record<AgentState, number>);
-
-    const totalExecutions = allAgents.reduce((sum, agent) => sum + agent.health.executionCount, 0);
-    const totalUptime = allAgents.reduce((sum, agent) => sum + agent.uptime, 0);
-    const averageUptime = allAgents.length > 0 ? totalUptime / allAgents.length : 0;
-
-    const healthyAgents = allAgents.filter(agent => agent.health.status === 'healthy').length;
-    const degradedAgents = allAgents.filter(agent => agent.health.status === 'degraded').length;
-    const unhealthyAgents = allAgents.filter(agent => agent.health.status === 'unhealthy').length;
-
-    const overallHealth = unhealthyAgents > 0 ? 'unhealthy' : 
-                         degradedAgents > 0 ? 'degraded' : 'healthy';
-
-    const averageResponseTime = allAgents.length > 0 ? 
-      allAgents.reduce((sum, agent) => sum + agent.health.responseTime.average, 0) / allAgents.length : 0;
-
-    const totalErrorCount = allAgents.reduce((sum, agent) => sum + agent.health.errorCount, 0);
-    const errorRate = totalExecutions > 0 ? totalErrorCount / totalExecutions : 0;
-
-    return {
-      totalAgents: allAgents.length,
-      activeAgents: agentsByState.ready || 0,
-      pausedAgents: agentsByState.paused || 0,
-      terminatedAgents: agentsByState.terminated || 0,
-      erroredAgents: agentsByState.error || 0,
-      agentsByState,
-      averageUptime,
-      totalExecutions,
-      averageResponseTime,
-      systemHealth: {
-        overall: overallHealth,
-        score: healthyAgents / Math.max(allAgents.length, 1) * 100,
-        alerts: allAgents.reduce((sum, agent) => sum + agent.health.alerts.length, 0)
-      },
-      resourceUtilization: {
-        memory: allAgents.reduce((sum, agent) => sum + agent.resources.memory.used, 0),
-        cpu: allAgents.reduce((sum, agent) => sum + agent.resources.cpu.usage, 0) / Math.max(allAgents.length, 1),
-        storage: allAgents.reduce((sum, agent) => sum + agent.resources.storage.used, 0)
-      },
-      performance: {
-        throughput: totalExecutions,
-        errorRate,
-        successRate: 1 - errorRate
+  getAgentState(agentId: string): AgentState {
+    try {
+      const state = this.agentStates.get(agentId);
+      if (!state) {
+        logger.warn('Agent state not found', { agentId });
+        return 'unknown';
       }
-    };
-  }
-
-  /**
-   * Enable/disable automatic health monitoring
-   */
-  setHealthMonitoring(enabled: boolean, intervalMs?: number): void {
-    this.healthMonitoringEnabled = enabled;
-    
-    if (intervalMs) {
-      this.healthMonitoringInterval = intervalMs;
-    }
-
-    if (enabled) {
-      this.startHealthMonitoring();
-    } else {
-      this.stopHealthMonitoring();
+      return state;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error getting agent state', {
+        agentId,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      return 'error';
     }
   }
 
   /**
-   * Set resource limits for agents
+   * Get agent health
    */
-  setResourceLimits(limits: ResourceLimits): void {
-    this.resourceLimits = { ...this.resourceLimits, ...limits };
-  }
-
-  /**
-   * Upgrade agent to new version
-   */
-  async upgradeAgent(agentId: string, newVersion: string): Promise<void> {
-    const agent = this.managedAgents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent ${agentId} is not registered`);
-    }
-
-    // Serialize current state
-    const serializedState = await this.serializeAgent(agentId);
-    
-    // Update version
-    agent.definition.version = newVersion;
-    agent.definition.updatedAt = new Date();
-
-    // Update lifecycle state
-    const lifecycleState = this.lifecycleStates.get(agentId);
-    if (lifecycleState) {
-      lifecycleState.metadata.lastUpgrade = new Date();
-      lifecycleState.metadata.previousVersion = serializedState.version;
-    }
-
-    this.emit('agent-upgraded', { agentId, newVersion, previousVersion: serializedState.version });
-  }
-
-  /**
-   * Update agent state and history
-   */
-  private updateAgentState(agentId: string, newState: AgentState, reason: string): void {
-    const lifecycleState = this.lifecycleStates.get(agentId);
-    if (!lifecycleState) {
-      return;
-    }
-
-    const transition: StateTransition = {
-      fromState: lifecycleState.currentState,
-      toState: newState,
-      timestamp: new Date(),
-      reason
-    };
-
-    lifecycleState.previousState = lifecycleState.currentState;
-    lifecycleState.currentState = newState;
-    lifecycleState.stateHistory.push(transition);
-    lifecycleState.lastStateChange = new Date();
-
-    // Update capabilities
-    lifecycleState.canPause = newState === 'ready' || newState === 'busy';
-    lifecycleState.canResume = newState === 'paused';
-    lifecycleState.canTerminate = newState !== 'terminated';
-
-    // Update health status
-    lifecycleState.isHealthy = newState !== 'error' && newState !== 'terminated';
-
-    this.emit('agent-state-changed', { agentId, transition });
-  }
-
-  /**
-   * Set up event listeners for an agent
-   */
-  private setupAgentEventListeners(agent: IAgent): void {
-    agent.on('state-changed', (data) => {
-      this.updateAgentState(agent.id, data.newState, 'Agent state change');
-    });
-
-    agent.on('execution-started', (data) => {
-      const tracker = this.performanceMetrics.get(agent.id);
-      if (tracker) {
-        tracker.recordExecutionStart();
+  getAgentHealth(agentId: string): AgentHealthStatus {
+    try {
+      const health = this.agentHealth.get(agentId);
+      if (!health) {
+        logger.warn('Agent health not found', { agentId });
+        return { 
+          status: 'unknown',
+          lastChecked: new Date(),
+          uptime: 0,
+          errorRate: 0,
+          metrics: {}
+        };
       }
-    });
-
-    agent.on('execution-completed', (data) => {
-      const tracker = this.performanceMetrics.get(agent.id);
-      if (tracker) {
-        tracker.recordExecutionComplete(data.response?.executionTime || 0);
-      }
-    });
-
-    agent.on('execution-failed', (data) => {
-      const tracker = this.performanceMetrics.get(agent.id);
-      if (tracker) {
-        tracker.recordExecutionError();
-      }
-    });
+      
+      // Calculate uptime if possible
+      const metrics = this.performanceMetrics.get(agentId);
+      const uptime = metrics?.startTime ? Date.now() - metrics.startTime : 0;
+      
+      return {
+        ...health,
+        uptime,
+        lastChecked: new Date()
+      };
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error getting agent health', {
+        agentId,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      return { 
+        status: 'error', 
+        lastChecked: new Date(),
+        uptime: 0,
+        errorRate: 1,
+        metrics: {},
+        error: errorMessage
+      };
+    }
   }
 
   /**
-   * Calculate health metrics for an agent
+   * Handle agent state change
    */
-  private async calculateHealthMetrics(agentId: string): Promise<AgentHealthMetrics> {
-    const agent = this.managedAgents.get(agentId);
-    const lifecycleState = this.lifecycleStates.get(agentId);
-    const performanceTracker = this.performanceMetrics.get(agentId);
-
-    if (!agent || !lifecycleState || !performanceTracker) {
-      return this.getDefaultHealthMetrics();
-    }
-
-    const health = agent.getHealth();
-    const alerts: HealthAlert[] = [];
-
-    // Check for health alerts
-    if (health.errorCount > 10) {
-      alerts.push({
-        level: 'warning',
-        message: `High error count: ${health.errorCount}`,
-        timestamp: new Date(),
-        metric: 'errorCount',
-        value: health.errorCount,
-        threshold: 10
+  private handleAgentStateChange(agentId: string, event: any): void {
+    try {
+      const { newState } = event;
+      logger.info('Agent state changed', { agentId, newState });
+      
+      // Update agent state
+      this.agentStates.set(agentId, newState);
+      
+      // Update performance metrics
+      this.updatePerformanceMetrics(agentId, {
+        lastStateChange: new Date(),
+        stateChanges: (this.performanceMetrics.get(agentId)?.stateChanges || 0) + 1
+      });
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error handling agent state change', {
+        agentId,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
       });
     }
+  }
 
-    if (health.memoryUsage > 1000) {
-      alerts.push({
-        level: 'error',
-        message: `High memory usage: ${health.memoryUsage}MB`,
-        timestamp: new Date(),
-        metric: 'memoryUsage',
-        value: health.memoryUsage,
-        threshold: 1000
+  /**
+   * Handle agent error
+   */
+  /**
+   * Handle agent errors with comprehensive logging and recovery
+   */
+  private handleAgentError(agentId: string, event: any): void {
+    const { error, context = {} } = event;
+    const timestamp = new Date();
+    const errorId = uuidv4();
+    const correlationId = event.correlationId || uuidv4();
+    
+    try {
+      // Validate inputs
+      if (!agentId) {
+        throw new Error('Agent ID is required');
+      }
+      
+      // Extract error details with proper type checking
+      const errorMessage = error?.message || 'Unknown error';
+      const errorStack = error?.stack;
+      const errorCode = error?.code || 'UNKNOWN_ERROR';
+      const isRecoverable = this.isRecoverableError(error);
+      
+      // Create structured error context
+      const errorContext = {
+        errorId,
+        agentId,
+        correlationId,
+        timestamp: timestamp.toISOString(),
+        error: {
+          message: errorMessage,
+          code: errorCode,
+          stack: errorStack,
+          isRecoverable,
+          ...(error?.cause && { cause: error.cause })
+        },
+        context: this.sanitizeContext(context)
+      };
+      
+      // Log error with appropriate level
+      if (isRecoverable) {
+        logger.warn('Recoverable agent error occurred', errorContext);
+      } else {
+        logger.error('Critical agent error occurred', errorContext);
+      }
+      
+      // Update health status with circuit breaker pattern
+      this.updateAgentHealthStatus(agentId, {
+        error,
+        timestamp,
+        errorId,
+        isRecoverable
       });
-    }
-
-    const successRate = health.executionCount > 0 ? 
-      (health.executionCount - health.errorCount) / health.executionCount : 1;
-
-    return {
-      status: health.status,
-      uptime: health.uptime,
-      memoryUsage: health.memoryUsage,
-      cpuUsage: Math.random() * 50, // Simulated CPU usage
-      executionCount: health.executionCount,
-      successRate,
-      errorCount: health.errorCount,
-      lastError: null,
-      lastActivity: health.lastActivity,
-      responseTime: {
-        average: performanceTracker.getAverageResponseTime(),
-        median: performanceTracker.getMedianResponseTime(),
-        percentile95: performanceTracker.getPercentile95ResponseTime()
-      },
-      healthScore: this.calculateHealthScore(health, alerts),
-      alerts
-    };
-  }
-
-  /**
-   * Calculate resource usage for an agent
-   */
-  private async calculateResourceUsage(agentId: string): Promise<ResourceUsageMetrics> {
-    const agent = this.managedAgents.get(agentId);
-    const performanceTracker = this.performanceMetrics.get(agentId);
-
-    if (!agent || !performanceTracker) {
-      return this.getDefaultResourceUsage();
-    }
-
-    const health = agent.getHealth();
-
-    return {
-      memory: {
-        used: health.memoryUsage,
-        peak: performanceTracker.peakMemoryUsage,
-        limit: this.resourceLimits.memory.maxUsage,
-        unit: this.resourceLimits.memory.unit
-      },
-      cpu: {
-        usage: Math.random() * 30, // Simulated CPU usage
-        peak: performanceTracker.peakCpuUsage,
-        limit: this.resourceLimits.cpu.maxUsage,
-        unit: this.resourceLimits.cpu.unit
-      },
-      storage: {
-        used: Math.random() * 100, // Simulated storage usage
-        limit: this.resourceLimits.storage.maxUsage,
-        unit: this.resourceLimits.storage.unit
-      },
-      network: {
-        bytesIn: performanceTracker.networkBytesIn,
-        bytesOut: performanceTracker.networkBytesOut,
-        connections: 1
-      },
-      executionTime: {
-        total: performanceTracker.totalExecutionTime,
-        average: performanceTracker.getAverageResponseTime(),
-        peak: performanceTracker.peakExecutionTime,
-        unit: 'milliseconds'
-      }
-    };
-  }
-
-  /**
-   * Calculate health score (0-100)
-   */
-  private calculateHealthScore(health: any, alerts: HealthAlert[]): number {
-    let score = 100;
-
-    // Deduct for errors
-    if (health.errorCount > 0) {
-      score -= Math.min(health.errorCount * 2, 30);
-    }
-
-    // Deduct for alerts
-    alerts.forEach(alert => {
-      switch (alert.level) {
-        case 'critical':
-          score -= 25;
-          break;
-        case 'error':
-          score -= 15;
-          break;
-        case 'warning':
-          score -= 5;
-          break;
-      }
-    });
-
-    // Deduct for unhealthy states
-    if (health.status === 'unhealthy') {
-      score -= 40;
-    } else if (health.status === 'degraded') {
-      score -= 20;
-    }
-
-    return Math.max(0, Math.min(100, score));
-  }
-
-  /**
-   * Start health monitoring
-   */
-  private startHealthMonitoring(): void {
-    if (!this.healthMonitoringEnabled || this.healthMonitoringTimer) {
-      return;
-    }
-
-    this.healthMonitoringTimer = setInterval(async () => {
-      for (const agentId of this.managedAgents.keys()) {
-        try {
-          const health = await this.calculateHealthMetrics(agentId);
-          const lifecycleState = this.lifecycleStates.get(agentId);
-          
-          if (lifecycleState) {
-            lifecycleState.isHealthy = health.status === 'healthy';
-            
-            if (health.status === 'unhealthy') {
-              this.emit('agent-unhealthy', { agentId, health });
-            }
-          }
-        } catch (error) {
-          console.error(`Error monitoring agent ${agentId}:`, error);
+      
+      // Emit error event with correlation ID
+      this.emitAgentErrorEvent({
+        agentId,
+        error,
+        timestamp,
+        errorId,
+        correlationId,
+        context: {
+          ...context,
+          currentState: this.agentStates.get(agentId),
+          healthStatus: this.agentHealth.get(agentId)?.status || 'unknown',
+          isRecoverable
         }
+      });
+      
+      // Attempt recovery for recoverable errors
+      if (isRecoverable) {
+        this.attemptAgentRecovery(agentId, {
+          error,
+          errorId,
+          correlationId,
+          context
+        }).catch(recoveryError => {
+          logger.error('Agent recovery attempt failed', {
+            errorId,
+            agentId,
+            correlationId,
+            recoveryError: this.normalizeError(recoveryError),
+            originalError: this.normalizeError(error),
+            timestamp: new Date().toISOString()
+          });
+        });
+      } else {
+        // For critical errors, trigger emergency procedures
+        this.handleCriticalError(agentId, {
+          error,
+          errorId,
+          correlationId,
+          context
+        });
       }
-    }, this.healthMonitoringInterval);
-  }
-
-  /**
-   * Stop health monitoring
-   */
-  private stopHealthMonitoring(): void {
-    if (this.healthMonitoringTimer) {
-      clearInterval(this.healthMonitoringTimer);
-      this.healthMonitoringTimer = null;
+      
+    } catch (handlerError) {
+      // Critical error in error handler - use minimal logging to avoid recursive errors
+      console.error(`CRITICAL ERROR in handleAgentError: ${this.normalizeError(handlerError).message}`, {
+        agentId,
+        errorId,
+        originalError: this.normalizeError(error),
+        handlerError: this.normalizeError(handlerError),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Use process.nextTick to prevent unhandled promise rejections
+      process.nextTick(() => {
+        throw Object.assign(new Error('Unrecoverable error in error handler'), {
+          code: 'ERROR_HANDLER_FAILURE',
+          cause: handlerError,
+          originalError: error,
+          agentId,
+          errorId,
+          timestamp: new Date().toISOString()
+        });
+      });
     }
   }
 
   /**
-   * Get default health metrics
+   * Handle execution start
    */
-  private getDefaultHealthMetrics(): AgentHealthMetrics {
-    return {
-      status: 'unknown',
-      uptime: 0,
-      memoryUsage: 0,
-      cpuUsage: 0,
-      executionCount: 0,
-      successRate: 0,
+  private handleExecutionStart(agentId: string, event: any): void {
+    try {
+      const { executionId } = event;
+      logger.debug('Execution started', { agentId, executionId });
+      
+      // Update performance metrics
+      this.updatePerformanceMetrics(agentId, {
+        activeRequests: (this.performanceMetrics.get(agentId)?.activeRequests || 0) + 1
+      });
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error handling execution start', {
+        agentId,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+  }
+
+  /**
+   * Handle execution complete
+   */
+  private handleExecutionComplete(agentId: string, event: any): void {
+    try {
+      const { executionId, responseTime } = event;
+      logger.debug('Execution completed', { agentId, executionId, responseTime });
+      
+      // Update performance metrics
+      this.updatePerformanceMetrics(agentId, {
+        requestCount: (this.performanceMetrics.get(agentId)?.requestCount || 0) + 1,
+        avgResponseTime: this.calculateAverageResponseTime(this.performanceMetrics.get(agentId)?.avgResponseTime, responseTime),
+        activeRequests: (this.performanceMetrics.get(agentId)?.activeRequests || 0) - 1
+      });
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error handling execution complete', {
+        agentId,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+  }
+
+  /**
+   * Handle execution failure with detailed error tracking and recovery
+   */
+  private handleExecutionFail(agentId: string, event: any): void {
+    const executionId = event?.executionId || 'unknown';
+    const error = event?.error || new Error('Unknown execution error');
+    const correlationId = event?.correlationId || uuidv4();
+    const timestamp = new Date();
+    
+    try {
+      // Validate inputs
+      if (!agentId) {
+        throw new Error('Agent ID is required');
+      }
+      
+      // Create structured error context
+      const errorContext = {
+        executionId,
+        agentId,
+        correlationId,
+        timestamp: timestamp.toISOString(),
+        error: this.normalizeError(error),
+        context: this.sanitizeContext(event?.context || {})
+      };
+      
+      // Log execution failure
+      logger.error('Execution failed', errorContext);
+      
+      // Update performance metrics with error details
+      this.updatePerformanceMetrics(agentId, {
+        errorCount: (this.performanceMetrics.get(agentId)?.errorCount || 0) + 1,
+        activeRequests: Math.max(0, (this.performanceMetrics.get(agentId)?.activeRequests || 0) - 1),
+        lastError: timestamp,
+        errorRate: this.calculateErrorRate(agentId)
+      });
+      
+      // Emit execution failed event with proper type assertion
+      this.emit('agent-state-changed', {
+        agentId,
+        transition: {
+          from: this.agentStates.get(agentId) || 'unknown',
+          to: 'error',
+          reason: 'execution-failed',
+          timestamp,
+          metadata: {
+            executionId,
+            correlationId,
+            error: this.normalizeError(error)
+          }
+        }
+      });
+      
+      // Check if we should trigger circuit breaker
+      const errorRate = this.performanceMetrics.get(agentId)?.errorRate || 0;
+      if (errorRate > 0.5) { // 50% error rate threshold
+        logger.warn('High error rate detected, considering circuit breaking', {
+          agentId,
+          errorRate,
+          executionId,
+          correlationId
+        });
+        
+        // Use the circuit breaker's public API to record the failure
+        this.circuitBreaker.execute(() => Promise.reject(error))
+          .catch(() => {
+            logger.warn('Circuit breaker tripped due to high error rate', {
+              agentId,
+              executionId,
+              correlationId,
+              errorRate
+            });
+          });
+      }
+      
+    } catch (handlerError) {
+      // Log error in error handler but don't throw to prevent unhandled exceptions
+      logger.error('Error in handleExecutionFail handler', {
+        agentId,
+        executionId,
+        correlationId,
+        originalError: this.normalizeError(error),
+        handlerError: this.normalizeError(handlerError),
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  /**
+   * Initialize performance metrics for an agent
+   */
+  private initializePerformanceMetrics(agentId: string): void {
+    this.performanceMetrics.set(agentId, {
+      requestCount: 0,
       errorCount: 0,
+      avgResponseTime: 0,
+      activeRequests: 0,
+      lastStateChange: new Date(),
+      stateChanges: 0,
       lastError: null,
+      errorRate: 0,
+      startTime: new Date()
+    });
       lastActivity: new Date(),
       responseTime: {
         average: 0,
