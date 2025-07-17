@@ -206,6 +206,102 @@ Il sistema è **pronto per l'uso** in ambienti enterprise e può gestire workloa
 - **Scalability**: Architettura che scala da startup a enterprise
 - **Developer Experience**: CLI moderna con UX ottimale
 
+## 🛠️ Ready-to-Use Scripts
+
+### ✅ Launcher Scripts Implementati
+
+#### 1. **convergio.sh** - Main Launcher
+```bash
+./convergio.sh [options...]    # Launcher principale con banner e controlli
+./convergio.sh --help          # Help del launcher
+./convergio.sh -p "prompt"     # Esecuzione diretta prompt
+```
+
+**Features:**
+- ✅ Banner ASCII art professionale
+- ✅ Controlli prerequisiti (Node.js version)
+- ✅ Verifica esistenza bundle
+- ✅ Output colorato con logging strutturato
+- ✅ Passthrough di tutti gli argomenti CLI
+
+#### 2. **install.sh** - Global Installation
+```bash
+./install.sh                   # Installer interattivo
+# Opzioni:
+# 1) Global (/usr/local/bin) - richiede sudo
+# 2) Local (~/.local/bin) - user-only
+```
+
+**Features:**
+- ✅ Installazione globale con symlink in /usr/local/bin
+- ✅ Installazione locale in ~/.local/bin
+- ✅ Controlli automatici PATH
+- ✅ Gestione installazioni esistenti
+- ✅ Wizard interattivo user-friendly
+
+#### 3. **setup-alias.sh** - Shell Alias Setup
+```bash
+./setup-alias.sh              # Crea alias shell automaticamente
+```
+
+**Features:**
+- ✅ Rilevamento automatico shell (bash/zsh/fish)
+- ✅ Aggiunta alias in RC file appropriato
+- ✅ Gestione alias esistenti
+- ✅ Cross-platform compatibility (macOS/Linux)
+
+#### 4. **setup-auth.sh** - Authentication Setup
+```bash
+./setup-auth.sh               # Wizard interattivo per configurazione API keys
+```
+
+**Features:**
+- ✅ Configurazione guidata multi-provider
+- ✅ Supporto provider principali (Gemini, Claude, OpenAI)
+- ✅ Provider aggiuntivi (Perplexity, Mistral, Vertex AI)
+- ✅ Gestione file .env automatica
+- ✅ Sicurezza: input nascosto per API keys
+- ✅ Aggiornamento/sostituzione keys esistenti
+
+#### 5. **check-auth.sh** - Authentication Verification
+```bash
+./check-auth.sh               # Verifica stato autenticazione
+```
+
+**Features:**
+- ✅ Controllo API keys configurate
+- ✅ Ricerca automatica file .env
+- ✅ Test funzionalità CLI
+- ✅ Raccomandazioni setup
+- ✅ Diagnostica problemi autenticazione
+
+### 🚀 Usage dopo installazione
+
+```bash
+# Dopo ./install.sh (opzione 1):
+convergio                      # Da qualsiasi directory
+convergio --list-extensions    # Lista estensioni
+convergio -p "create file"     # Prompt diretto
+
+# Dopo ./setup-alias.sh:
+convergio                      # Alias shell attivo
+```
+
+### ⚡ Quick Setup Command Flow
+
+```bash
+# Setup completo in 4 step:
+npm run build                  # 1. Build bundle
+./setup-auth.sh                # 2. Configura autenticazione (RICHIESTO)
+./install.sh                   # 3. Installa globalmente
+./setup-alias.sh               # 4. Setup alias (opzionale)
+
+# Verifica e test:
+./check-auth.sh                # Verifica configurazione
+convergio --help               # Test installazione
+convergio -p "Hello, world!"   # Test funzionalità
+```
+
 ---
 
 **🏆 Convergio CLI: Enterprise AI Agent Orchestration Platform - Production Ready**

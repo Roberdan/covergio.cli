@@ -41,92 +41,118 @@ This repository contains the **Convergio CLI**, a comprehensive Universal AI Age
 - **💾 Vector Database**: Semantic search and similarity-based memory retrieval
 - **🔧 Advanced Commands**: Slash commands for agent management and domain exploration
 
-## Quickstart
+## 🚀 Quick Start
 
-1. **Prerequisites:** Ensure you have [Node.js version 20](https://nodejs.org/en/download) or higher installed.
-2. **Clone and Install:** Clone the repository and install dependencies:
+### Option 1: Easy Setup (Recommended)
 
+1. **Prerequisites:** Ensure you have [Node.js version 18+](https://nodejs.org/en/download) installed.
+
+2. **Clone and Build:**
    ```bash
    git clone https://github.com/convergio/convergio-cli
    cd convergio-cli
    npm install
-   ```
-
-3. **Build the CLI:**
-
-   ```bash
    npm run build
    ```
 
-   Then, run the CLI:
-
+3. **Configure Authentication:**
    ```bash
-   npm start
+   # Setup API keys for AI providers
+   ./setup-auth.sh
+   
+   # Verify authentication status
+   ./check-auth.sh
    ```
 
-4. **Configure AI Models:** Set up your preferred AI models and API keys:
-
+4. **Run Convergio CLI:**
    ```bash
-   npm run setup
+   # Option A: Direct execution
+   ./convergio.sh
+
+   # Option B: Global installation (recommended)
+   ./install.sh
+   # Then run from anywhere:
+   convergio
    ```
 
-5. **Initialize Task Management:** Set up Task-Master-AI for intelligent task orchestration:
+### Option 2: Quick Commands
 
-   ```bash
-   npx task-master init
-   ```
-
-You are now ready to use the Convergio CLI for multi-agent AI orchestration!
-
-### Configure AI API Keys:
-
-Convergio supports multiple AI providers for maximum flexibility. Configure the providers you want to use:
-
-#### Primary Providers (recommended):
-
-**Anthropic Claude:**
 ```bash
-export ANTHROPIC_API_KEY="your_anthropic_key"
-```
-Get your key from [Anthropic Console](https://console.anthropic.com/)
+# Show help and available options
+./convergio.sh --help
 
-**OpenAI GPT:**
-```bash
-export OPENAI_API_KEY="your_openai_key"
-```
-Get your key from [OpenAI Platform](https://platform.openai.com/api-keys)
+# List available extensions
+./convergio.sh --list-extensions
 
-**Google Gemini:**
-```bash
-export GOOGLE_API_KEY="your_google_key"
-# For Vertex AI (optional):
-export GOOGLE_GENAI_USE_VERTEXAI=true
-```
-Get your key from [Google AI Studio](https://aistudio.google.com/apikey)
+# Execute a prompt directly
+./convergio.sh -p "create a hello world file"
 
-#### Additional Providers (optional):
-
-**Perplexity (for research features):**
-```bash
-export PERPLEXITY_API_KEY="your_perplexity_key"
+# Start interactive mode
+./convergio.sh
 ```
 
-**OpenRouter (multiple models):**
+### Option 3: Developer Mode
+
+For development and testing:
+
 ```bash
-export OPENROUTER_API_KEY="your_openrouter_key"
+npm run dev        # Development mode with hot reload
+npm run test       # Run test suite
+npm run typecheck  # TypeScript validation
 ```
 
-**XAI Grok:**
+### 🔧 Installation Options
+
+#### Global Installation (Recommended)
 ```bash
-export XAI_API_KEY="your_xai_key"
+./install.sh
+# Choose option 1 for system-wide access
+# Then run 'convergio' from anywhere
 ```
 
-**Mistral:**
+#### Local Installation
 ```bash
-export MISTRAL_API_KEY="your_mistral_key"
+./install.sh
+# Choose option 2 for user-only access
+# Add ~/.local/bin to PATH if needed
 ```
 
-For detailed configuration and model selection, see the [authentication guide](./docs/cli/authentication.md).
+#### Manual Run
+```bash
+# Run directly without installation
+./convergio.sh [options...]
+```
+
+You are now ready to use the Convergio CLI for enterprise-grade multi-agent AI orchestration!
+
+### 🔐 API Key Configuration
+
+Convergio CLI requires at least one AI provider to function. Use our setup script for easy configuration:
+
+#### Automated Setup (Recommended)
+```bash
+# Interactive setup wizard
+./setup-auth.sh
+
+# Check configuration status
+./check-auth.sh
+```
+
+#### Manual Configuration
+Create a `.gemini/.env` file in your project:
+
+```bash
+# Primary Providers (choose at least one)
+GEMINI_API_KEY="your_gemini_key"              # Get from: https://aistudio.google.com/app/apikey
+ANTHROPIC_API_KEY="your_anthropic_key"        # Get from: https://console.anthropic.com/
+OPENAI_API_KEY="your_openai_key"              # Get from: https://platform.openai.com/api-keys
+
+# Optional Providers
+PERPLEXITY_API_KEY="your_perplexity_key"      # Research features
+MISTRAL_API_KEY="your_mistral_key"            # European AI provider
+```
+
+For detailed configuration options and troubleshooting, see the [authentication guide](./docs/cli/authentication.md).
 
 ## Dependencies and Libraries
 
