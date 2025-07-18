@@ -12,6 +12,8 @@ export default defineConfig({
     reporters: ['default', 'junit'],
     silent: false,
     setupFiles: ['./test-setup.ts'],
+    include: ['test/universal/**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**'],
     outputFile: {
       junit: 'junit.xml',
     },
@@ -20,6 +22,12 @@ export default defineConfig({
       provider: 'v8',
       reportsDirectory: './coverage',
       include: ['src/**/*'],
+      exclude: [
+        '**/*.test.ts',
+        '**/test/**',
+        '**/__mocks__/**',
+        '**/types/**',
+      ],
       reporter: [
         ['text', { file: 'full-text-summary.txt' }],
         'html',

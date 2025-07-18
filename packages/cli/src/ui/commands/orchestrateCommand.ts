@@ -5,49 +5,173 @@
  */
 
 import { SlashCommand } from './types.js';
+import { WorkflowCoordinator, WorkflowDefinition, WorkflowExecution } from '@google/gemini-cli-core/universal/workflow/WorkflowCoordinator';
+import { AgentFactory } from '@google/gemini-cli-core/universal/agent/AgentFactory';
+import { DomainRegistry } from '@google/gemini-cli-core/universal/domain/DomainRegistry';
+import { ContextEngine } from '@google/gemini-cli-core/universal/context/ContextEngine';
+import { AnalysisEngine } from '@google/gemini-cli-core/universal/analysis/AnalysisEngine';
+import { TaskMaster } from '@google/gemini-cli-core/universal/agents/TaskMaster';
+import { v4 as uuidv4 } from 'uuid';
+
+// Cache for workflow coordinator instance
+let workflowCoordinator: WorkflowCoordinator | null = null;
 
 /**
- * Orchestration command for manual agent selection and workflow management
+ * Get or create a WorkflowCoordinator instance
+ */
+async function getWorkflowCoordinator(): Promise<WorkflowCoordinator> {
+  if (!workflowCoordinator) {
+    const contextEngine = ContextEngine.getInstance();
+    const agentFactory = AgentFactory.getInstance();
+    const domainRegistry = DomainRegistry.getInstance();
+    const analysisEngine = AnalysisEngine.getInstance();
+    const taskMaster = new TaskMaster({});
+    
+    workflowCoordinator = new WorkflowCoordinator({
+      contextEngine,
+      taskMaster,
+      analysisEngine,
+      maxParallelSteps: 5,
+      autoStart: true
+    });
+  }
+  return workflowCoordinator;
+}
+
+/**
+ * Parse workflow definition from arguments or file
+ */
+async function parseWorkflowDefinition(args: string): Promise<WorkflowDefinition | null> {
+  // Check if args is a file path
+  const isFile = args.trim().endsWith('.json') || args.trim().endsWith('.yaml') || args.trim().endsWith('.yml');
+  
+  if (isFile) {
+    try {
+      // In a real implementation, we would read the file and parse it
+      // For now, we'll just return a simple workflow for testing
+      return {
+        id: 'test-workflow',
+        name: 'Test Workflow',
+        description: 'A simple test workflow',
+        version: '1.0.0',
+        steps: [
+          {
+            id: 'step1',
+            name: 'First Step',
+            description: 'First step of the workflow',
+            task: 'echo "Hello, World!"',
+          },
+          {
+            id: 'step2',
+            name: 'Second Step',
+            description: 'Second step that depends on the first',
+            task: 'process-data',
+            dependsOn: ['step1'],
+          },
+        ],
+      };
+    } catch (error) {
+      console.error('Error loading workflow file:', error);
+      return null;
+    }
+  }
+  
+  // Parse workflow from command line arguments
+  // This is a simplified example - in a real implementation, you would parse the arguments
+  // to create a workflow definition
+  return {
+    id: `workflow-${uuidv4()}`,
+    name: 'Dynamic Workflow',
+    description: 'Dynamically created workflow',
+    version: '1.0.0',
+    steps: [
+      {
+        id: 'step1',
+        name: 'Dynamic Step',
+        description: 'Dynamically created step',
+        task: args.trim() || 'echo "No task specified"',
+      },
+    ],
+  };
+}
+
+/**
+ * Format execution status for display
+ */
+function formatExecutionStatus(execution: WorkflowExecution): string {
+  const statusIcons = {
+    pending: '⏳',
+    running: '🔄',
+    completed: '✅',
+    failed: '❌',
+    cancelled: '⏹️',
+    paused: '⏸️',
+  };
+  
+  const icon = statusIcons[execution.status] || '❓';
+  const duration = execution.endTime 
+    ? `(${Math.floor((execution.endTime.getTime() - execution.startTime.getTime()) / 1000)}s)`
+    : '';
+    
+  return `${icon} Workflow ${execution.workflowId} - ${execution.status} ${duration}`;
+}
+
+/**
+ * Orchestration command for Universal AI Agent Orchestration
  */
 export const orchestrateCommand: SlashCommand = {
   name: 'orchestrate',
   altName: 'orch',
-  description: 'Manual agent selection and workflow orchestration',
+  description: 'Universal AI Agent Orchestration - Create and manage workflows with specialized agents',
   subCommands: [
     {
-      name: 'team',
-      description: 'Create a custom team of agents with specific domains and roles',
+      name: 'start',
+      description: 'Start a new workflow execution',
       action: async (context, args) => {
-        const parsedArgs = parseOrchestrateArgs(args);
-        
-        if (!parsedArgs.domains && !parsedArgs.roles && !parsedArgs.agents) {
+        if (!args.trim()) {
           return {
             type: 'message',
             messageType: 'error',
-            content: `Usage: /orchestrate team [domain:name] [role:name] [agent:id]
+            content: `Usage: /orchestrate start <workflow-file.json|task-description>
             
 Examples:
-  /orchestrate team domain:coding domain:testing role:senior-dev
-  /orchestrate team agent:gpt-4 agent:claude-3 role:reviewer
-  /orchestrate team domain:analysis role:data-scientist agent:specialist-1`
-          };
-        }
-
-        const orchestrator = context.services.orchestrator;
-        if (!orchestrator) {
-          return {
-            type: 'message',
-            messageType: 'error',
-            content: 'Orchestrator not initialized.'
+  /orchestrate start ./path/to/workflow.json
+  /orchestrate start "Analyze the codebase and generate documentation"
+  /orchestrate start --domains=coding,documentation --task="Refactor the API service"`
           };
         }
 
         try {
-          const team = await orchestrator.createCustomTeam({
-            domains: parsedArgs.domains,
-            roles: parsedArgs.roles,
-            agents: parsedArgs.agents,
-            maxSize: parsedArgs.maxSize || 5,
+          const workflowCoordinator = await getWorkflowCoordinator();
+          const workflow = await parseWorkflowDefinition(args);
+          
+          if (!workflow) {
+            return {
+              type: 'message',
+              messageType: 'error',
+              content: 'Failed to parse workflow definition.'
+            };
+          }
+          
+          const execution = await workflowCoordinator.createExecution(workflow);
+          
+          return {
+            type: 'message',
+            messageType: 'success',
+            content: `🚀 Started workflow execution: ${execution.id}\n` +
+                     `Workflow: ${workflow.name} (${workflow.steps.length} steps)\n` +
+                     `Status: ${execution.status}\n` +
+                     `Progress: ${execution.progress}%`
+          };
+        } catch (error) {
+          return {
+            type: 'message',
+            messageType: 'error',
+            content: `Failed to start workflow: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
+
+      }
             collaborationPattern: parsedArgs.pattern || 'sequential'
           });
 
@@ -77,9 +201,44 @@ Team is ready for tasks. Use /orchestrate execute to start workflow.`
       }
     },
     {
-      name: 'execute',
-      description: 'Execute a workflow with the current team',
+      name: 'stop',
+      description: 'Stop a running workflow execution',
       action: async (context, args) => {
+        const executionId = args.trim();
+        
+        if (!executionId) {
+          return {
+            type: 'message',
+            messageType: 'error',
+            content: 'Usage: /orchestrate stop <execution-id>'
+          };
+        }
+        
+        try {
+          const workflowCoordinator = await getWorkflowCoordinator();
+          const success = workflowCoordinator.cancelExecution(executionId);
+          
+          if (success) {
+            return {
+              type: 'message',
+              messageType: 'warning',
+              content: 'The templates subcommand has been deprecated.\n' +
+                      'Please use `/orchestrate start --template=<id>` instead.'
+            };
+          } else {
+            return {
+              type: 'message',
+              messageType: 'warning',
+              content: `Execution ${executionId} could not be cancelled (it may have already completed or failed)`
+            };
+          }
+        } catch (error) {
+          return {
+            type: 'message',
+            messageType: 'error',
+            content: `Failed to cancel execution: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
         const parts = args.trim().split(' ');
         if (parts.length < 1 || !parts[0]) {
           return {
@@ -132,9 +291,24 @@ Use /orchestrate status ${execution.id} to monitor progress.`
       }
     },
     {
-      name: 'status',
-      description: 'Check the status of current orchestration or specific execution',
-      action: async (context, args) => {
+      name: 'list',
+      description: 'List available workflow templates',
+      action: async () => {
+        // In a real implementation, this would list available workflow templates
+        // For now, we'll return a static list of example templates
+        const templates = [
+          { id: 'code-review', name: 'Code Review', description: 'Review code changes with domain experts' },
+          { id: 'documentation', name: 'Generate Documentation', description: 'Create documentation from code' },
+          { id: 'testing', name: 'Test Generation', description: 'Generate and run tests for code' },
+          { id: 'refactoring', name: 'Code Refactoring', description: 'Refactor code with architecture guidance' },
+        ];
+        
+        return {
+          type: 'message',
+          messageType: 'info',
+          content: 'The templates subcommand has been deprecated.\n' +
+                  'Please use `/orchestrate start --template=<id>` instead.'
+        };
         const executionId = args.trim();
         const orchestrator = context.services.orchestrator;
         
@@ -229,9 +403,42 @@ Performance:
       }
     },
     {
-      name: 'stop',
-      description: 'Stop current orchestration or specific execution',
-      action: async (context, args) => {
+      name: 'domains',
+      description: 'List available agent domains and capabilities',
+      action: async () => {
+        try {
+          const domainRegistry = DomainRegistry.getInstance();
+          const domains = domainRegistry.listDomains();
+          
+          if (domains.length === 0) {
+            return {
+              type: 'message',
+              messageType: 'info',
+              content: 'No domains registered. Use the DomainRegistry to register domains.'
+            };
+          }
+          
+          const domainList = domains.map(domain => {
+            const agentTemplates = domainRegistry.listAgentTemplates(domain.id);
+            const templateList = agentTemplates.length > 0 
+              ? `  Agents: ${agentTemplates.map(t => t.id).join(', ')}`
+              : '  No agent templates defined';
+              
+            return `• ${domain.id} (${domain.name})\n  ${domain.description || 'No description'}\n${templateList}`;
+          }).join('\n\n');
+          
+          return {
+            type: 'message',
+            messageType: 'info',
+            content: '🌐 Available Agent Domains:\n\n' + domainList
+          };
+        } catch (error) {
+          return {
+            type: 'message',
+            messageType: 'error',
+            content: `Failed to list domains: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
         const executionId = args.trim();
         const orchestrator = context.services.orchestrator;
         
@@ -269,9 +476,28 @@ Performance:
       }
     },
     {
-      name: 'history',
-      description: 'Show orchestration execution history',
-      action: async (context, args) => {
+      name: 'agents',
+      description: 'List available agent instances',
+      action: async () => {
+        try {
+          const agentFactory = AgentFactory.getInstance();
+          // In a real implementation, we would get the list of agents from the factory
+          // For now, we'll return a placeholder message
+          
+          return {
+            type: 'message',
+            messageType: 'info',
+            content: '🤖 Agent Management\n\n' +
+                    'Available agent instances will be listed here.\n' +
+                    'Use `/orchestrate agents create <type> [options]` to create a new agent.'
+          };
+        } catch (error) {
+          return {
+            type: 'message',
+            messageType: 'error',
+            content: `Failed to list agents: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
         const limit = parseInt(args.trim()) || 10;
         const orchestrator = context.services.orchestrator;
         
@@ -326,9 +552,27 @@ Performance:
       }
     },
     {
-      name: 'optimize',
-      description: 'Optimize agent selection and workflow patterns',
-      action: async (context, args) => {
+      name: 'help',
+      description: 'Show help for orchestration commands',
+      action: () => ({
+        type: 'message',
+        messageType: 'info',
+        content: `🤖 Universal AI Agent Orchestration Commands:
+
+• /orchestrate start <workflow-file|task> - Start a new workflow execution
+• /orchestrate status [execution-id]     - Check execution status
+• /orchestrate stop <execution-id>       - Stop a running execution
+• /orchestrate list                      - List available workflow templates
+• /orchestrate domains                   - List available agent domains
+• /orchestrate agents                    - Manage agent instances
+• /orchestrate help                      - Show this help message
+
+Examples:
+  /orchestrate start ./path/to/workflow.json
+  /orchestrate start "Analyze the codebase and generate documentation"
+  /orchestrate status workflow-123
+  /orchestrate stop workflow-123
+  /orchestrate domains`
         const options = parseOptimizeOptions(args);
         const orchestrator = context.services.orchestrator;
         
@@ -378,14 +622,18 @@ Apply recommendations with /orchestrate apply-optimization`
         }
       }
     },
+    },
+    // Keep the original 'team' command for backward compatibility
     {
-      name: 'templates',
-      description: 'Manage orchestration templates for common patterns',
-      subCommands: [
-        {
-          name: 'list',
-          description: 'List available orchestration templates',
-          action: async (context) => {
+      name: 'team',
+      description: 'Legacy: Create a custom team of agents (use /orchestrate start instead)',
+      action: async (context, args) => ({
+        type: 'message',
+        messageType: 'warning',
+        content: 'The /orchestrate team command is deprecated.\n' +
+                'Please use `/orchestrate start` with workflow definitions instead.\n' +
+                'Example: /orchestrate start --domains=coding,documentation --task="Your task here"'
+      })
             const orchestrator = context.services.orchestrator;
             if (!orchestrator) {
               return {
@@ -428,11 +676,7 @@ Apply recommendations with /orchestrate apply-optimization`
               };
             }
           }
-        },
-        {
-          name: 'use',
-          description: 'Use a specific orchestration template',
-          action: async (context, args) => {
+        }
             const templateName = args.trim();
             if (!templateName) {
               return {
@@ -460,14 +704,9 @@ Apply recommendations with /orchestrate apply-optimization`
 
               return {
                 type: 'message',
-                messageType: 'success',
-                content: `Template '${templateName}' applied successfully:
-
-Team Created: ${result.team.id}
-Pattern: ${result.team.collaborationPattern}
-Members:
-${teamMembers}
-
+                messageType: 'warning',
+                content: 'The templates subcommand has been deprecated.\n' +
+                        'Please define your workflows as JSON or YAML files instead.'
 Next Steps:
 1. Use /orchestrate execute to start workflow
 2. Monitor progress with /orchestrate status`
@@ -480,11 +719,7 @@ Next Steps:
               };
             }
           }
-        },
-        {
-          name: 'save',
-          description: 'Save current orchestration as a template',
-          action: async (context, args) => {
+        }
             const parts = args.trim().split(' ');
             if (parts.length < 2) {
               return {

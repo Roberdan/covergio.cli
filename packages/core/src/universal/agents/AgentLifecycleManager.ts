@@ -732,139 +732,26 @@ export class AgentLifecycleManager extends EventEmitter {
   }
 
   /**
-   * Handle execution failure with detailed error tracking and recovery
+   * Get default resource usage metrics
    */
-  private handleExecutionFail(agentId: string, event: any): void {
-    const executionId = event?.executionId || 'unknown';
-    const error = event?.error || new Error('Unknown execution error');
-    const correlationId = event?.correlationId || uuidv4();
-    const timestamp = new Date();
-    
-    try {
-      // Validate inputs
-      if (!agentId) {
-        throw new Error('Agent ID is required');
-      }
-      
-      // Create structured error context
-      const errorContext = {
-        executionId,
-        agentId,
-        correlationId,
-        timestamp: timestamp.toISOString(),
-        error: this.normalizeError(error),
-        context: this.sanitizeContext(event?.context || {})
-      };
-      
-      // Log execution failure
-      logger.error('Execution failed', errorContext);
-      
-      // Update performance metrics with error details
-      this.updatePerformanceMetrics(agentId, {
-        errorCount: (this.performanceMetrics.get(agentId)?.errorCount || 0) + 1,
-        activeRequests: Math.max(0, (this.performanceMetrics.get(agentId)?.activeRequests || 0) - 1),
-        lastError: timestamp,
-        errorRate: this.calculateErrorRate(agentId)
-      });
-      
-      // Emit execution failed event with proper type assertion
-      this.emit('agent-state-changed', {
-        agentId,
-        transition: {
-          from: this.agentStates.get(agentId) || 'unknown',
-          to: 'error',
-          reason: 'execution-failed',
-          timestamp,
-          metadata: {
-            executionId,
-            correlationId,
-            error: this.normalizeError(error)
-          }
-        }
-      });
-      
-      // Check if we should trigger circuit breaker
-      const errorRate = this.performanceMetrics.get(agentId)?.errorRate || 0;
-      if (errorRate > 0.5) { // 50% error rate threshold
-        logger.warn('High error rate detected, considering circuit breaking', {
-          agentId,
-          errorRate,
-          executionId,
-          correlationId
-        });
-        
-        // Use the circuit breaker's public API to record the failure
-        this.circuitBreaker.execute(() => Promise.reject(error))
-          .catch(() => {
-            logger.warn('Circuit breaker tripped due to high error rate', {
-              agentId,
-              executionId,
-              correlationId,
-              errorRate
-            });
-          });
-      }
-      
-    } catch (handlerError) {
-      // Log error in error handler but don't throw to prevent unhandled exceptions
-      logger.error('Error in handleExecutionFail handler', {
-        agentId,
-        executionId,
-        correlationId,
-        originalError: this.normalizeError(error),
-        handlerError: this.normalizeError(handlerError),
-        timestamp: new Date().toISOString()
-      });
-    }
-  }
-
-  /**
-   * Initialize performance metrics for an agent
-   */
-  private initializePerformanceMetrics(agentId: string): void {
-    this.performanceMetrics.set(agentId, {
-      requestCount: 0,
-      errorCount: 0,
-      avgResponseTime: 0,
-      activeRequests: 0,
-      lastStateChange: new Date(),
-      stateChanges: 0,
-      lastError: null,
-      errorRate: 0,
-      startTime: new Date()
-    });
-      lastActivity: new Date(),
-      responseTime: {
-        average: 0,
-        median: 0,
-        percentile95: 0
-      },
-      healthScore: 0,
-      alerts: []
-    };
-  }
-
-  /**
-   * Get default resource usage
-   */
-  private getDefaultResourceUsage(): ResourceUsageMetrics {
+  private getDefaultResourceUsage() {
     return {
       memory: {
         used: 0,
         peak: 0,
-        limit: this.resourceLimits.memory.maxUsage,
-        unit: this.resourceLimits.memory.unit
+        limit: this.resourceLimits.maxMemoryMB,
+        unit: 'MB'
       },
       cpu: {
         usage: 0,
         peak: 0,
-        limit: this.resourceLimits.cpu.maxUsage,
-        unit: this.resourceLimits.cpu.unit
+        limit: 100, // percentage
+        unit: '%'
       },
       storage: {
         used: 0,
-        limit: this.resourceLimits.storage.maxUsage,
-        unit: this.resourceLimits.storage.unit
+        limit: 0, // Not used by default
+        unit: 'MB'
       },
       network: {
         bytesIn: 0,
