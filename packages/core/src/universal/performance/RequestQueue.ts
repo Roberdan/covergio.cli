@@ -28,12 +28,7 @@ export interface RequestQueueConfig {
 /**
  * Request priority levels
  */
-export enum RequestPriority {
-  LOW = 0,
-  NORMAL = 1,
-  HIGH = 2,
-  CRITICAL = 3
-}
+export type RequestPriority = 'low' | 'medium' | 'high' | 'critical';
 
 /**
  * Queue metrics interface
@@ -136,12 +131,12 @@ export class RequestQueue extends EventEmitter {
       queueUtilization: 0,
       errorRate: 0,
       priorityDistribution: {
-        [RequestPriority.LOW]: 0,
-        [RequestPriority.NORMAL]: 0,
-        [RequestPriority.HIGH]: 0,
-        [RequestPriority.CRITICAL]: 0
+        'low': 0,
+        'medium': 0,
+        'high': 0,
+        'critical': 0
       }
-    };
+    } as QueueMetrics;
 
     this.initializeQueues();
     this.setupLoadBalancer();
@@ -152,9 +147,10 @@ export class RequestQueue extends EventEmitter {
    * Initialize priority queues
    */
   private initializeQueues(): void {
-    for (let priority = 0; priority < this.config.priorityLevels; priority++) {
-      this.queues.set(priority as RequestPriority, []);
-    }
+    const priorities: RequestPriority[] = ['low', 'medium', 'high', 'critical'];
+    priorities.forEach(priority => {
+      this.queues.set(priority, []);
+    });
   }
 
   /**
@@ -217,7 +213,7 @@ export class RequestQueue extends EventEmitter {
    */
   async enqueue(
     request: OrchestrationRequest,
-    priority: RequestPriority = RequestPriority.NORMAL,
+    priority: RequestPriority = 'medium',
     processor?: RequestProcessor
   ): Promise<OrchestrationResponse> {
     // Check queue capacity
@@ -293,7 +289,7 @@ export class RequestQueue extends EventEmitter {
    */
   private getNextRequest(): QueuedRequest | null {
     if (!this.config.enablePrioritization) {
-      // FIFO processing without priority
+      // Process in FIFO order if prioritization is disabled
       for (const queue of this.queues.values()) {
         if (queue.length > 0) {
           return queue.shift()!;
@@ -302,14 +298,14 @@ export class RequestQueue extends EventEmitter {
       return null;
     }
 
-    // Priority-based processing (highest priority first)
-    for (let priority = this.config.priorityLevels - 1; priority >= 0; priority--) {
-      const queue = this.queues.get(priority as RequestPriority);
+    // Process based on priority if enabled
+    const priorityOrder: RequestPriority[] = ['critical', 'high', 'medium', 'low'];
+    for (const priority of priorityOrder) {
+      const queue = this.queues.get(priority);
       if (queue && queue.length > 0) {
         return queue.shift()!;
       }
     }
-
     return null;
   }
 
@@ -488,6 +484,9 @@ export class RequestQueue extends EventEmitter {
     this.handleRequestError(queuedRequest, error, Date.now());
   }
 
+  /**
+   * Update processing metrics
+   */
   /**
    * Update processing metrics
    */

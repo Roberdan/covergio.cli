@@ -48,6 +48,7 @@ export class AgentLifecycleManager extends EventEmitter {
   private isShuttingDown: boolean = false;
   private maintenanceInterval?: NodeJS.Timeout;
   private readonly MAINTENANCE_INTERVAL_MS = 30000; // 30 seconds
+  private isInMaintenance = false;
   
   /**
    * Normalize error objects for consistent handling
@@ -302,22 +303,180 @@ export class AgentLifecycleManager extends EventEmitter {
     return !FATAL_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
   }
 
-  constructor(resourceLimits: Partial<typeof DEFAULT_RESOURCE_LIMITS> = {}) {
+  /**
+   * Start maintenance tasks for the agent lifecycle manager
+   */
+  private startMaintenance(): void {
+    // Clear any existing interval to prevent duplicates
+    if (this.maintenanceInterval) {
+      clearInterval(this.maintenanceInterval);
+    }
+
+    // Set up periodic maintenance tasks
+    this.maintenanceInterval = setInterval(() => {
+      try {
+        this.performMaintenance();
+      } catch (error) {
+        logger.error('Error during maintenance task', { 
+          error: this.normalizeError(error) 
+        });
+      }
+    }, this.MAINTENANCE_INTERVAL_MS);
+
+    logger.debug('Maintenance tasks started', { 
+      intervalMs: this.MAINTENANCE_INTERVAL_MS 
+    });
+  }
+
+  /**
+   * Perform maintenance tasks for all agents
+   */
+  private performMaintenance(): void {
+    logger.debug('Running maintenance tasks');
+    
+    // Check agent health
+    for (const [agentId, agent] of this.agents.entries()) {
+      try {
+        // Update resource usage
+        this.updateResourceUsage(agentId);
+        
+        // Check for unhealthy agents
+        this.checkAgentHealth(agentId);
+        
+        // Clean up completed tasks
+        this.cleanupCompletedTasks(agentId);
+      } catch (error) {
+        logger.error(`Error during maintenance for agent ${agentId}`, {
+          agentId,
+          error: this.normalizeError(error)
+        });
+      }
+    }
+  }
+
+  /**
+   * Update resource usage for an agent
+   */
+  private updateResourceUsage(agentId: string): void {
+    // Implementation would track memory, CPU, etc.
+    const currentUsage = this.resourceUsage.get(agentId) || this.getDefaultResourceUsage();
+    // Update with current metrics
+    this.resourceUsage.set(agentId, currentUsage);
+  }
+
+  /**
+   * Check health of an agent
+   */
+  private checkAgentHealth(agentId: string): void {
+    const health = this.agentHealth.get(agentId);
+    if (health && health.status === 'unhealthy') {
+      logger.warn(`Agent ${agentId} is unhealthy`, { agentId, health });
+      // Additional health check logic would go here
+    }
+  }
+
+  /**
+   * Clean up completed tasks for an agent
+   */
+  private cleanupCompletedTasks(agentId: string): void {
+    // Implementation would clean up completed tasks
+    logger.debug(`Cleaning up completed tasks for agent ${agentId}`);
+  }
+
+  /**
+   * Check if registering a new agent would exceed resource limits
+   */
+  private async checkResourceLimits(agentId: string): Promise<void> {
+    // Check if we've reached the maximum number of agents
+    const maxAgents = this.resourceLimits.maxConcurrentRequests || 10;
+    if (this.agents.size >= maxAgents) {
+      const error = new Error(`Maximum number of agents (${maxAgents}) reached`);
+      logger.error('Resource limit exceeded', { agentId, error: error.message });
+      throw error;
+    }
+    
+    // Check memory usage
+    const totalMemory = Array.from(this.resourceUsage.values())
+      .reduce((sum, usage) => sum + (usage.memoryMB || 0), 0);
+      
+    if (totalMemory >= this.resourceLimits.maxMemoryMB) {
+      const error = new Error(`Insufficient memory available (${totalMemory}MB used of ${this.resourceLimits.maxMemoryMB}MB max)`);
+      logger.error('Memory limit exceeded', { agentId, error: error.message });
+      throw error;
+    }
+    
+    logger.debug('Resource check passed', { agentId });
+  }
+
+  /**
+   * Clean up resources associated with an agent
+   */
+  private async cleanupAgent(agentId: string, terminationError?: Error): Promise<void> {
+    logger.debug('Cleaning up agent resources', { agentId });
+    
+    try {
+      // Remove from active agents
+      this.agents.delete(agentId);
+      
+      // Clean up state tracking
+      this.agentStates.delete(agentId);
+      this.agentHealth.delete(agentId);
+      this.resourceUsage.delete(agentId);
+      this.performanceMetrics.delete(agentId);
+      
+      // Log the cleanup
+      if (terminationError) {
+        logger.warn('Agent terminated due to error', { 
+          agentId, 
+          error: this.normalizeError(terminationError) 
+        });
+      } else {
+        logger.info('Agent resources cleaned up successfully', { agentId });
+      }
+      
+      // Emit cleanup event
+      this.emit('agent-cleanup', { 
+        agentId, 
+        timestamp: new Date(),
+        error: terminationError ? this.normalizeError(terminationError) : undefined
+      });
+      
+    } catch (error) {
+      logger.error('Error during agent cleanup', { 
+        agentId, 
+        error: this.normalizeError(error) 
+      });
+      // Re-throw to ensure the error is properly handled by the caller
+      throw error;
+    }
+  }
+
+  constructor(private readonly config: AgentLifecycleManagerConfig = {}) {
     super();
     
-    this.resourceLimits = { ...DEFAULT_RESOURCE_LIMITS, ...resourceLimits };
+    this.resourceLimits = { ...DEFAULT_RESOURCE_LIMITS, ...config.resourceLimits };
     this.circuitBreaker = new CircuitBreaker({
       ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
-      name: 'agent-lifecycle-manager'
+      ...config.circuitBreaker,
+      onStateChange: this.handleCircuitBreakerStateChange.bind(this)
     });
     
-    // Start maintenance tasks
-    this.startMaintenance();
+    if (config.enableHealthMonitoring !== false) {
+      this.startMaintenance();
+    }
     
     logger.info('AgentLifecycleManager initialized', {
       resourceLimits: this.resourceLimits,
       circuitBreakerConfig: DEFAULT_CIRCUIT_BREAKER_CONFIG
     });
+  }
+
+  /**
+   * Handle circuit breaker state change
+   */
+  private handleCircuitBreakerStateChange(state: 'open' | 'half-open' | 'closed'): void {
+    logger.warn(`Circuit breaker state changed to: ${state}`);
+    this.emit('circuit-breaker-state-changed', { state });
   }
 
   /**

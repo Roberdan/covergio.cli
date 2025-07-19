@@ -345,12 +345,23 @@ export class IntegratedPersonality extends EventEmitter implements IPersonality 
     // Generate templates based on communication style
     const baseTemplates = this.getBaseTemplates();
     
+    // Map communication style tone to response template tone
+    const toneMap: Record<string, 'friendly' | 'neutral' | 'authoritative'> = {
+      'friendly': 'friendly',
+      'supportive': 'friendly',
+      'analytical': 'neutral',
+      'authoritative': 'authoritative',
+      'neutral': 'neutral'
+    };
+    
+    const templateTone = toneMap[this.communicationStyle.tone] || 'neutral';
+    
     for (const template of baseTemplates) {
       this.responseTemplates.push({
         ...template,
         style: {
           formality: this.communicationStyle.formality,
-          tone: this.communicationStyle.tone,
+          tone: templateTone,
           length: this.communicationStyle.verbosity === 'concise' ? 'short' : 
                  this.communicationStyle.verbosity === 'detailed' ? 'long' : 'medium'
         }

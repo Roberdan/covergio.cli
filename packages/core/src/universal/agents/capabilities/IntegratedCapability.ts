@@ -307,14 +307,18 @@ export class IntegratedCapability extends EventEmitter implements ICapability {
     }
 
     // Check for synergies based on category
-    const synergyMap = {
+    const synergyMap: Record<string, string[]> = {
       'technical': ['analytical', 'problem-solving'],
       'creative': ['communication', 'innovation'],
       'analytical': ['technical', 'research'],
-      'communication': ['creative', 'interpersonal']
+      'communication': ['creative', 'interpersonal'],
+      'domain-specific': ['technical', 'analytical', 'communication']
     };
+    
+    // Type assertion to handle the category access safely
+    const categoryKey = this.category as keyof typeof synergyMap;
 
-    const potentialSynergies = synergyMap[this.category] || [];
+    const potentialSynergies = synergyMap[categoryKey] || [];
     for (const cap of capabilities) {
       if (potentialSynergies.some(syn => cap.includes(syn))) {
         synergies.push(`Synergy with ${cap}`);

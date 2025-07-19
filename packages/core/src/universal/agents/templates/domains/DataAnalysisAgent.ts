@@ -840,10 +840,10 @@ export const DataAnalysisTemplate: DomainAgentTemplate = {
   ],
   defaultPersonalityTraits: [
     { name: 'analytical', value: 0.9, description: 'Highly analytical and data-driven', category: 'analytical' },
-    { name: 'methodical', value: 0.8, description: 'Systematic approach to analysis', category: 'methodical' },
-    { name: 'detail-oriented', value: 0.8, description: 'Pays attention to data details', category: 'methodical' },
+    { name: 'methodical', value: 0.8, description: 'Systematic approach to analysis', category: 'problem-solving' },
+    { name: 'detail-oriented', value: 0.8, description: 'Pays attention to data details', category: 'problem-solving' },
     { name: 'objective', value: 0.9, description: 'Objective and unbiased analysis', category: 'analytical' },
-    { name: 'thorough', value: 0.8, description: 'Comprehensive analysis approach', category: 'methodical' }
+    { name: 'thorough', value: 0.8, description: 'Comprehensive analysis approach', category: 'problem-solving' }
   ],
   defaultTools: [
     'statistical-package',

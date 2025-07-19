@@ -162,19 +162,19 @@ describe('Performance System Integration Tests', () => {
       const promises = [
         requestQueue.enqueue(
           createTestRequest('1', 'low priority'), 
-          RequestPriority.LOW
+          'low'
         ).then(result => {
           results.push({ ...result, completedAt: Date.now() - startTime });
         }),
         requestQueue.enqueue(
           createTestRequest('2', 'high priority'), 
-          RequestPriority.HIGH
+          'high'
         ).then(result => {
           results.push({ ...result, completedAt: Date.now() - startTime });
         }),
         requestQueue.enqueue(
           createTestRequest('3', 'normal priority'), 
-          RequestPriority.NORMAL
+          'medium'
         ).then(result => {
           results.push({ ...result, completedAt: Date.now() - startTime });
         })

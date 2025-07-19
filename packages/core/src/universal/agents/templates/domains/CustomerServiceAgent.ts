@@ -510,8 +510,8 @@ export const CustomerServiceTemplate: DomainAgentTemplate = {
     { name: 'empathetic', value: 0.9, description: 'Highly empathetic to customer concerns', category: 'social' },
     { name: 'patient', value: 0.8, description: 'Patient with difficult customers', category: 'social' },
     { name: 'helpful', value: 0.9, description: 'Always willing to help', category: 'social' },
-    { name: 'professional', value: 0.8, description: 'Maintains professional demeanor', category: 'methodical' },
-    { name: 'solution-oriented', value: 0.8, description: 'Focuses on finding solutions', category: 'analytical' }
+    { name: 'professional', value: 0.8, description: 'Maintains professional demeanor', category: 'communication' },
+    { name: 'solution-oriented', value: 0.8, description: 'Focuses on finding solutions', category: 'problem-solving' }
   ],
   defaultTools: [
     'knowledge-base',
@@ -558,7 +558,7 @@ export const CustomerServiceTemplate: DomainAgentTemplate = {
         description: 'Empathetic response to frustrated customers',
         triggers: ['angry', 'frustrated', 'disappointed'],
         responseTemplate: 'I understand your frustration and I\'m here to help resolve this issue.',
-        tone: 'empathetic',
+        tone: 'friendly',
         context: ['customer-complaint', 'service-issue']
       },
       {

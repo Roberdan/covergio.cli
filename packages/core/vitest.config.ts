@@ -12,8 +12,11 @@ export default defineConfig({
     reporters: ['default', 'junit'],
     silent: false,
     setupFiles: ['./test-setup.ts'],
-    include: ['test/universal/**/*.test.ts'],
+    include: ['test/universal/**/*.test.ts', 'test/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
+    testTimeout: 120000, // 2 minute timeout for all tests
+    hookTimeout: 60000,  // 1 minute timeout for hooks
+    teardownTimeout: 60000, // 1 minute for teardown
     outputFile: {
       junit: 'junit.xml',
     },

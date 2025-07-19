@@ -96,6 +96,7 @@
   "dependencies": {
     "markitdown-ts": "^0.0.4",
     "unzipper": "^0.12.3",
+    "winston": "^3.17.0",
     "youtube-transcript": "^1.2.1"
   }
 }

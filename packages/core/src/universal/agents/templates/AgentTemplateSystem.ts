@@ -680,8 +680,8 @@ export class AgentTemplateSystem extends EventEmitter {
     // Creative mixin
     this.registerMixin('creative-mixin', {
       defaultPersonalityTraits: [
-        { name: 'creative', value: 0.9, description: 'Highly creative and innovative', category: 'creative' },
-        { name: 'imaginative', value: 0.8, description: 'Rich imagination and ideation', category: 'creative' }
+        { name: 'creative', value: 0.9, description: 'Highly creative and innovative', category: 'creativity' },
+        { name: 'imaginative', value: 0.8, description: 'Rich imagination and ideation', category: 'creativity' }
       ],
       domainSpecific: {
         knowledgeBase: ['creative-techniques'],
@@ -696,7 +696,7 @@ export class AgentTemplateSystem extends EventEmitter {
     this.registerMixin('diagnostic-mixin', {
       defaultPersonalityTraits: [
         { name: 'diagnostic', value: 0.9, description: 'Excellent diagnostic skills', category: 'analytical' },
-        { name: 'systematic', value: 0.8, description: 'Systematic problem-solving', category: 'methodical' }
+        { name: 'systematic', value: 0.8, description: 'Systematic problem-solving', category: 'problem-solving' }
       ],
       domainSpecific: {
         knowledgeBase: ['diagnostic-procedures'],

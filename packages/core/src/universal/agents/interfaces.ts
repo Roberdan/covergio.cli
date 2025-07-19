@@ -98,7 +98,7 @@ export interface ResponseTemplate {
   triggers: string[];
   variables: Record<string, any>;
   style: {
-    formality: 'casual' | 'professional' | 'formal';
+    formality: 'casual' | 'professional' | 'formal' | 'academic';
     tone: 'friendly' | 'neutral' | 'authoritative';
     length: 'short' | 'medium' | 'long';
   };

@@ -74,7 +74,7 @@ describe('Agent Lifecycle Management', () => {
       role: 'agent',
       capabilities: ['testing'],
       personalityTraits: [
-        { name: 'reliable', value: 0.9, description: 'Highly reliable', category: 'methodical' }
+        { name: 'reliable', value: 0.9, description: 'Highly reliable', category: 'problem-solving' }
       ]
     });
   });

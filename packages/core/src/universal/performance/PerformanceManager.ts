@@ -427,7 +427,7 @@ export class PerformanceManager extends EventEmitter {
    */
   async executeRequest(
     request: OrchestrationRequest,
-    priority: RequestPriority = RequestPriority.NORMAL,
+    priority: RequestPriority = 'medium',
     options: {
       useCache?: boolean;
       cacheKey?: string;

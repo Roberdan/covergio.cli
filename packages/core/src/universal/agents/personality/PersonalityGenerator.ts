@@ -645,8 +645,8 @@ export class PersonalityGenerator extends EventEmitter {
       baseTraits: [
         { name: 'analytical', value: 0.9, description: 'Strong analytical thinking', category: 'analytical' },
         { name: 'logical', value: 0.8, description: 'Logical reasoning', category: 'analytical' },
-        { name: 'detail-oriented', value: 0.8, description: 'Attention to detail', category: 'methodical' },
-        { name: 'methodical', value: 0.7, description: 'Systematic approach', category: 'methodical' },
+        { name: 'detail-oriented', value: 0.8, description: 'Attention to detail', category: 'problem-solving' },
+        { name: 'methodical', value: 0.7, description: 'Systematic approach', category: 'problem-solving' },
         { name: 'patient', value: 0.7, description: 'Patient with complex problems', category: 'social' },
         { name: 'helpful', value: 0.8, description: 'Helpful and supportive', category: 'social' },
         { name: 'professional', value: 0.9, description: 'Professional demeanor', category: 'communication' }
@@ -734,7 +734,7 @@ export class PersonalityGenerator extends EventEmitter {
         { name: 'patient', value: 0.8, description: 'Patient with others', category: 'social' },
         { name: 'collaborative', value: 0.8, description: 'Works well with others', category: 'social' },
         { name: 'encouraging', value: 0.8, description: 'Encouraging and positive', category: 'communication' },
-        { name: 'reliable', value: 0.8, description: 'Reliable and dependable', category: 'methodical' },
+        { name: 'reliable', value: 0.8, description: 'Reliable and dependable', category: 'problem-solving' },
         { name: 'professional', value: 0.8, description: 'Professional demeanor', category: 'communication' }
       ],
       communicationStyle: {

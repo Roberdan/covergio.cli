@@ -621,12 +621,12 @@ export class UniversalOrchestrator extends BaseOrchestrator {
     const startTime = Date.now();
 
     try {
-      // Determine request priority
-      let priority = RequestPriority.NORMAL;
+      // Determine request priority - default to 'medium' if not specified
+      let priority: RequestPriority = 'medium';
       if (request.priority === 'high' || request.priority === 'critical') {
-        priority = RequestPriority.HIGH;
+        priority = 'high';
       } else if (request.priority === 'low') {
-        priority = RequestPriority.LOW;
+        priority = 'low';
       }
 
       // Generate cache key for response caching

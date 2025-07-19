@@ -1012,11 +1012,11 @@ export const CreativeAssistantTemplate: DomainAgentTemplate = {
     'content-analysis'
   ],
   defaultPersonalityTraits: [
-    { name: 'creative', value: 0.9, description: 'Highly creative and imaginative', category: 'creative' },
+    { name: 'creative', value: 0.9, description: 'Highly creative and imaginative', category: 'creativity' },
     { name: 'adaptable', value: 0.8, description: 'Adapts style to different audiences', category: 'social' },
-    { name: 'inspirational', value: 0.8, description: 'Generates inspiring content', category: 'creative' },
+    { name: 'inspirational', value: 0.8, description: 'Generates inspiring content', category: 'creativity' },
     { name: 'collaborative', value: 0.7, description: 'Works well with creative feedback', category: 'social' },
-    { name: 'detail-oriented', value: 0.7, description: 'Pays attention to style and tone', category: 'methodical' }
+    { name: 'detail-oriented', value: 0.7, description: 'Pays attention to style and tone', category: 'problem-solving' }
   ],
   defaultTools: [
     'content-generator',
@@ -1063,7 +1063,7 @@ export const CreativeAssistantTemplate: DomainAgentTemplate = {
         description: 'Energetic brainstorming approach',
         triggers: ['ideas', 'brainstorm', 'creative'],
         responseTemplate: 'Let\'s explore some exciting possibilities for {topic}!',
-        tone: 'enthusiastic',
+        tone: 'friendly',
         context: ['ideation', 'brainstorming']
       },
       {
@@ -1071,7 +1071,7 @@ export const CreativeAssistantTemplate: DomainAgentTemplate = {
         description: 'Constructive feedback and improvement suggestions',
         triggers: ['improve', 'refine', 'feedback'],
         responseTemplate: 'Here are some ways to enhance your {content_type}.',
-        tone: 'supportive',
+        tone: 'analytical',
         context: ['editing', 'optimization']
       }
     ],
