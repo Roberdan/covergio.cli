@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Web Dashboard** (`packages/web/`): Full SvelteKit 2 + Svelte 5 web application with dashboard, plans (kanban+table), agents catalog, metrics charts, settings page. 14 UI components, 8 chart/data components, 7 layout components. Dark mode, responsive design, SSE real-time updates
-- **Agentic Infrastructure**: CLAUDE.md v2.0.0 (compact format), `.claude/settings.json`, `.claude/rules/` (guardian, coding-standards, compaction-preservation), `AGENTS.md` for cross-tool agent discovery (65 Claude + 9 Copilot agents), `.github/copilot-instructions.md`
+- **Chat UI** (`/chat`): Convergio Orchestrator chat interface with SSE streaming, conversation management, agent selector, markdown rendering with code blocks and copy. Contextual responses for `/orchestrate`, `/plan`, `/agents` commands. Shows orchestration flow: You → Orchestrator → Agents → Tools → Result
+- **Agent Catalog**: 56+ agents across 8 categories (orchestration, technical, domain, tools, leadership, business, compliance, copilot). Core engine agents (UniversalOrchestrator, TaskMaster, AgentFactory), domain templates, 14 built-in tools, 30+ Claude Code agents, 9 Copilot CLI agents
+- **Agentic Infrastructure**: CLAUDE.md v2.0.0 (compact format), `.claude/settings.json`, `.claude/rules/` (guardian, coding-standards, compaction-preservation), `AGENTS.md` for cross-tool agent discovery, `.github/copilot-instructions.md`
 - **Repository Hardening**: Husky hooks (pre-commit lint-staged, pre-push typecheck, commit-msg conventional commits), `scripts/secret-scanner.sh` (21 patterns), `.github/pull_request_template.md`, ADR directory structure
 - **Security Headers**: `hooks.server.ts` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options
 - **Deployment Configs**: Dockerfile (multi-stage), docker-compose.yml, vercel.json, staticwebapp.config.json
