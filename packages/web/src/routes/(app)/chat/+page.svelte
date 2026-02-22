@@ -289,21 +289,43 @@
         <div class="mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 p-4 shadow-lg">
           <Bot class="h-8 w-8 text-white" />
         </div>
-        <h2 class="text-xl font-semibold text-zinc-800 dark:text-zinc-100">Convergio Chat</h2>
-        <p class="mt-2 max-w-md text-center text-sm text-zinc-500 dark:text-zinc-400">
-          Start a conversation with the AI orchestration engine. Ask anything about your codebase,
-          create plans, run tools, or orchestrate agents.
+        <h2 class="text-xl font-semibold text-zinc-800 dark:text-zinc-100">Convergio Orchestrator</h2>
+        <p class="mt-2 max-w-lg text-center text-sm text-zinc-500 dark:text-zinc-400">
+          Universal AI Agent Orchestration Platform. Describe a complex task and Convergio auto-spawns
+          specialized agents (dev, design, legal, analysis) that work in parallel with 14 tools.
         </p>
-        <div class="mt-6 flex flex-wrap justify-center gap-2">
-          {#each ['Analyze my codebase', 'Create a plan for...', 'Run tests', 'Explain this code'] as suggestion}
+
+        <div class="mt-6 grid max-w-2xl grid-cols-2 gap-3 px-4">
+          {#each [
+            { text: '/orchestrate Build a REST API with auth', desc: 'Multi-agent orchestration' },
+            { text: '/plan Migrate from Jest to Vitest', desc: 'Create a wave-based plan' },
+            { text: 'Analyze my codebase for security issues', desc: 'Deep code analysis' },
+            { text: '/agents List all available agents', desc: 'Browse 56+ agents & 14 tools' }
+          ] as suggestion}
             <button
               type="button"
-              class="rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition hover:border-violet-400 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-violet-500"
-              onclick={() => { inputValue = suggestion; }}
+              class="group rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left transition hover:border-violet-400 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-violet-500"
+              onclick={() => { inputValue = suggestion.text; }}
             >
-              {suggestion}
+              <p class="text-sm font-medium text-zinc-800 group-hover:text-violet-700 dark:text-zinc-200 dark:group-hover:text-violet-300">{suggestion.text}</p>
+              <p class="mt-1 text-xs text-zinc-400">{suggestion.desc}</p>
             </button>
           {/each}
+        </div>
+
+        <div class="mt-8 max-w-lg rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/50">
+          <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400">How it works</p>
+          <div class="mt-2 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span class="rounded bg-violet-100 px-2 py-0.5 font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">You</span>
+            <span>→</span>
+            <span class="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Orchestrator</span>
+            <span>→</span>
+            <span class="rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Agents</span>
+            <span>→</span>
+            <span class="rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Tools</span>
+            <span>→</span>
+            <span class="rounded bg-violet-100 px-2 py-0.5 font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">Result</span>
+          </div>
         </div>
       </div>
     {:else}
@@ -315,7 +337,7 @@
               <div class={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                 msg.role === 'user'
                   ? 'bg-violet-600 text-white'
-                  : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300'
+                  : 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white'
               }`}>
                 {#if msg.role === 'user'}
                   <User class="h-4 w-4" />
@@ -323,7 +345,11 @@
                   <Bot class="h-4 w-4" />
                 {/if}
               </div>
-              <div class={`max-w-[80%] rounded-2xl px-4 py-3 ${
+              <div class="max-w-[80%]">
+                {#if msg.role !== 'user'}
+                  <p class="mb-1 text-xs font-medium text-violet-500 dark:text-violet-400">Convergio Orchestrator</p>
+                {/if}
+                <div class={`rounded-2xl px-4 py-3 ${
                 msg.role === 'user'
                   ? 'bg-violet-600 text-white'
                   : 'bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-700'
@@ -344,6 +370,7 @@
                   {formatTime(msg.timestamp)}
                 </p>
               </div>
+              </div>
             </div>
           {/each}
           <div bind:this={messagesEnd}></div>
@@ -356,7 +383,7 @@
       <div class="mx-auto flex max-w-3xl items-end gap-3">
         <textarea
           class="flex-1 resize-none rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm placeholder-zinc-400 transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500"
-          placeholder="Message Convergio... (⌘+Enter to send)"
+          placeholder="Describe a task to orchestrate... /orchestrate, /plan, /agents (⌘+Enter)"
           rows="1"
           bind:value={inputValue}
           onkeydown={(e) => {

@@ -6,32 +6,35 @@
 
   type CategoryKey =
     | 'all'
-    | 'leadership'
+    | 'orchestration'
     | 'technical'
+    | 'domain'
+    | 'tools'
+    | 'leadership'
     | 'business'
-    | 'core-utility'
     | 'compliance'
-    | 'design'
     | 'copilot';
 
   const categoryTabs = [
     { label: 'All', value: 'all' },
-    { label: 'Leadership', value: 'leadership' },
+    { label: 'Orchestration', value: 'orchestration' },
     { label: 'Technical', value: 'technical' },
+    { label: 'Domain', value: 'domain' },
+    { label: 'Tools', value: 'tools' },
+    { label: 'Leadership', value: 'leadership' },
     { label: 'Business', value: 'business' },
-    { label: 'Core Utility', value: 'core-utility' },
     { label: 'Compliance', value: 'compliance' },
-    { label: 'Design', value: 'design' },
     { label: 'Copilot', value: 'copilot' }
   ] as const;
 
   const categoryColors: Record<Exclude<CategoryKey, 'all'>, string> = {
-    leadership: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+    orchestration: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
     technical: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    domain: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    tools: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    leadership: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
     business: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    'core-utility': 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100',
     compliance: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-    design: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
     copilot: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300'
   };
 
@@ -51,33 +54,21 @@
       .join('');
 
   const normalizeCategory = (agent: (typeof data.agents)[number]): Exclude<CategoryKey, 'all'> => {
-    if (agent.type === 'copilot') {
-      return 'copilot';
-    }
-
-    const category = agent.category.toLowerCase();
-    if (category.includes('leader')) {
-      return 'leadership';
-    }
-    if (category.includes('business')) {
-      return 'business';
-    }
-    if (category.includes('compliance')) {
-      return 'compliance';
-    }
-    if (category.includes('design')) {
-      return 'design';
-    }
-    if (category.includes('technical') || category.includes('engineering')) {
-      return 'technical';
-    }
-
-    return 'core-utility';
+    if (agent.type === 'copilot') return 'copilot';
+    const cat = agent.category.toLowerCase();
+    if (cat.includes('orchestrat')) return 'orchestration';
+    if (cat.includes('domain') || cat.includes('document')) return 'domain';
+    if (cat.includes('tool')) return 'tools';
+    if (cat.includes('leader')) return 'leadership';
+    if (cat.includes('business')) return 'business';
+    if (cat.includes('compliance')) return 'compliance';
+    if (cat.includes('technical') || cat.includes('engineering')) return 'technical';
+    return 'technical';
   };
 
   const categoryLabel = (agent: (typeof data.agents)[number]) => {
     const category = normalizeCategory(agent);
-    return categoryTabs.find((tab) => tab.value === category)?.label || 'Core Utility';
+    return categoryTabs.find((tab) => tab.value === category)?.label || 'Technical';
   };
 
   const filteredAgents = $derived.by(() => {
@@ -110,7 +101,7 @@
 </script>
 
 <section class="space-y-6">
-  <PageHeader title="Agent Catalog" description="65 Claude + 9 Copilot CLI agents" />
+  <PageHeader title="Agent Catalog" description="56+ agents · 14 tools · Multi-agent orchestration platform" />
 
   <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
     <label class="relative w-full lg:max-w-md">
