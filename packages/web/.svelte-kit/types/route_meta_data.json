@@ -1,11 +1,17 @@
 {
-	"/(app)": [],
+	"/(app)": [
+		"src/routes/(app)/+layout.server.ts"
+	],
 	"/": [],
 	"/(app)/agents": [
-		"src/routes/(app)/agents/+page.server.ts"
+		"src/routes/(app)/agents/+page.server.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/api/agents": [
 		"src/routes/api/agents/+server.ts"
+	],
+	"/api/chat": [
+		"src/routes/api/chat/+server.ts"
 	],
 	"/api/events": [
 		"src/routes/api/events/+server.ts"
@@ -28,17 +34,27 @@
 	"/api/test-results": [
 		"src/routes/api/test-results/+server.ts"
 	],
+	"/(app)/chat": [
+		"src/routes/(app)/chat/+page.server.ts",
+		"src/routes/(app)/+layout.server.ts"
+	],
 	"/(app)/dashboard": [
-		"src/routes/(app)/dashboard/+page.server.ts"
+		"src/routes/(app)/dashboard/+page.server.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(app)/metrics": [
-		"src/routes/(app)/metrics/+page.server.ts"
+		"src/routes/(app)/metrics/+page.server.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(app)/plans": [
-		"src/routes/(app)/plans/+page.server.ts"
+		"src/routes/(app)/plans/+page.server.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(app)/plans/[id]": [
-		"src/routes/(app)/plans/[id]/+page.server.ts"
+		"src/routes/(app)/plans/[id]/+page.server.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
-	"/(app)/settings": []
+	"/(app)/settings": [
+		"src/routes/(app)/+layout.server.ts"
+	]
 }

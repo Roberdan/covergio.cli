@@ -7,6 +7,7 @@
     ChevronsRight,
     FolderKanban,
     LayoutDashboard,
+    MessageSquare,
     Settings,
     X
   } from 'lucide-svelte';
@@ -30,7 +31,8 @@
       title: 'Main',
       items: [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-        { label: 'Plans', href: '/plans', icon: FolderKanban, badge: 3 },
+        { label: 'Chat', href: '/chat', icon: MessageSquare },
+        { label: 'Plans', href: '/plans', icon: FolderKanban },
         { label: 'Agents', href: '/agents', icon: Bot }
       ]
     },
@@ -44,6 +46,10 @@
   ];
 
   const currentPath = $derived(page.url.pathname);
+  const planBadge = $derived.by(() => {
+    const data = page.data as { planCount?: unknown } | undefined;
+    return typeof data?.planCount === 'number' ? data.planCount : undefined;
+  });
 
   function isActive(href: string) {
     if (href === '/dashboard') {
@@ -84,30 +90,31 @@
             </p>
           {/if}
 
-          <div class="space-y-1">
-            {#each group.items as item}
-              <a
-                href={item.href}
-                class={`group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            <div class="space-y-1">
+              {#each group.items as item}
+                {@const badgeValue = item.href === '/plans' ? planBadge : item.badge}
+                <a
+                  href={item.href}
+                  class={`group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive(item.href)
                     ? 'bg-violet-500 text-white'
                     : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
                 }`}
                 class:justify-center={$sidebarCollapsed}
                 title={$sidebarCollapsed ? item.label : undefined}
-              >
-                <svelte:component this={item.icon} class="h-5 w-5 shrink-0" />
+                >
+                  <svelte:component this={item.icon} class="h-5 w-5 shrink-0" />
 
-                {#if !$sidebarCollapsed}
-                  <span class="ml-3 flex-1">{item.label}</span>
-                  {#if item.badge !== undefined}
-                    <span
-                      class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                    >
-                      {item.badge}
-                    </span>
+                  {#if !$sidebarCollapsed}
+                    <span class="ml-3 flex-1">{item.label}</span>
+                    {#if badgeValue !== undefined}
+                      <span
+                        class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                      >
+                        {badgeValue}
+                      </span>
+                    {/if}
                   {/if}
-                {/if}
               </a>
             {/each}
           </div>
@@ -176,6 +183,7 @@
 
           <div class="space-y-1">
             {#each group.items as item}
+              {@const badgeValue = item.href === '/plans' ? planBadge : item.badge}
               <a
                 href={item.href}
                 class={`flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -187,11 +195,11 @@
               >
                 <svelte:component this={item.icon} class="h-5 w-5 shrink-0" />
                 <span class="ml-3 flex-1">{item.label}</span>
-                {#if item.badge !== undefined}
+                {#if badgeValue !== undefined}
                   <span
                     class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
                   >
-                    {item.badge}
+                    {badgeValue}
                   </span>
                 {/if}
               </a>

@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/(app)" | "/" | "/(app)/agents" | "/api" | "/api/agents" | "/api/events" | "/api/git-status" | "/api/kanban" | "/api/metrics" | "/api/plans" | "/api/plans/[id]" | "/api/test-results" | "/(app)/dashboard" | "/(app)/metrics" | "/(app)/plans" | "/(app)/plans/[id]" | "/(app)/settings";
+		RouteId(): "/(app)" | "/" | "/(app)/agents" | "/api" | "/api/agents" | "/api/chat" | "/api/events" | "/api/git-status" | "/api/kanban" | "/api/metrics" | "/api/plans" | "/api/plans/[id]" | "/api/test-results" | "/(app)/chat" | "/(app)/dashboard" | "/(app)/metrics" | "/(app)/plans" | "/(app)/plans/[id]" | "/(app)/settings";
 		RouteParams(): {
 			"/api/plans/[id]": { id: string };
 			"/(app)/plans/[id]": { id: string }
@@ -38,6 +38,7 @@ declare module "$app/types" {
 			"/(app)/agents": Record<string, never>;
 			"/api": { id?: string };
 			"/api/agents": Record<string, never>;
+			"/api/chat": Record<string, never>;
 			"/api/events": Record<string, never>;
 			"/api/git-status": Record<string, never>;
 			"/api/kanban": Record<string, never>;
@@ -45,13 +46,14 @@ declare module "$app/types" {
 			"/api/plans": { id?: string };
 			"/api/plans/[id]": { id: string };
 			"/api/test-results": Record<string, never>;
+			"/(app)/chat": Record<string, never>;
 			"/(app)/dashboard": Record<string, never>;
 			"/(app)/metrics": Record<string, never>;
 			"/(app)/plans": { id?: string };
 			"/(app)/plans/[id]": { id: string };
 			"/(app)/settings": Record<string, never>
 		};
-		Pathname(): "/" | "/agents" | "/api/agents" | "/api/events" | "/api/git-status" | "/api/kanban" | "/api/metrics" | "/api/plans" | `/api/plans/${string}` & {} | "/api/test-results" | "/dashboard" | "/metrics" | "/plans" | `/plans/${string}` & {} | "/settings";
+		Pathname(): "/" | "/agents" | "/api/agents" | "/api/chat" | "/api/events" | "/api/git-status" | "/api/kanban" | "/api/metrics" | "/api/plans" | `/api/plans/${string}` & {} | "/api/test-results" | "/chat" | "/dashboard" | "/metrics" | "/plans" | `/plans/${string}` & {} | "/settings";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): string & {};
 	}

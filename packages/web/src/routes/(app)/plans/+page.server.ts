@@ -1,10 +1,15 @@
 import type { PageServerLoad } from './$types';
-import { queryPlans } from '$server/db';
+import { queryKanban, queryPlans } from '$server/db';
 
 export const load: PageServerLoad = async () => {
   try {
-    return { plans: queryPlans() };
+    const plans = queryPlans();
+    return {
+      plans,
+      kanban: queryKanban(),
+      planCount: plans.length
+    };
   } catch {
-    return { plans: [] };
+    return { plans: [], kanban: [], planCount: 0 };
   }
 };

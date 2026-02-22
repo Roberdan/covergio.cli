@@ -1,8 +1,8 @@
 <script lang="ts">
   import { browser } from '$app/environment';
-  import { ArrowUpRight, Bot, CheckCircle2, FolderKanban, TrendingUp } from 'lucide-svelte';
   import LineChart from '$components/charts/LineChart.svelte';
   import DonutChart from '$components/charts/DonutChart.svelte';
+  import StatCard from '$components/data/StatCard.svelte';
   import { PageHeader } from '$components/layout';
   import { Badge, Card, Progress } from '$components/ui';
   import { metricsStore } from '$stores/metricsStore';
@@ -21,11 +21,6 @@
   const metricsState = metricsStore.metrics;
 
   const fallbackMetrics: DashboardMetrics = { totalPlans: 0, activePlans: 0, totalTasks: 0, doneTasks: 0, completionRate: 0, tokenData: null };
-  const fallbackPlans: PlanSummary[] = [
-    { id: 101, name: 'Bootstrap workspace telemetry', status: 'doing', tasks_done: 14, tasks_total: 20, updated_at: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
-    { id: 102, name: 'Harden CI quality gates', status: 'todo', tasks_done: 6, tasks_total: 16, updated_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString() },
-    { id: 103, name: 'Deliver dashboard redesign', status: 'done', tasks_done: 12, tasks_total: 12, updated_at: new Date(Date.now() - 28 * 60 * 60 * 1000).toISOString() }
-  ];
 
   const statusMeta: Record<PlanStatus, { label: string; variant: BadgeVariant }> = {
     todo: { label: 'To do', variant: 'warning' },
@@ -54,7 +49,9 @@
     void metricsStore.refresh();
   });
 
-  const serverPlans = $derived.by<PlanSummary[]>(() => (Array.isArray(data.plans) ? (data.plans as PlanSummary[]) : []));
+  const serverPlans = $derived.by<PlanSummary[]>(() =>
+    Array.isArray(data.plans) ? (data.plans as unknown as PlanSummary[]) : []
+  );
   const serverMetrics = $derived.by<DashboardMetrics>(() => ({ ...fallbackMetrics, ...((data.metrics as Partial<DashboardMetrics> | undefined) ?? {}) }));
   const plans = $derived.by<PlanSummary[]>(() => {
     const livePlans = $plansState as PlanSummary[];
@@ -69,15 +66,15 @@
     const daily = metrics.tokenData?.dailyActivity ?? [];
     if (daily.length > 0) {
       const sorted = [...daily].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-7);
-      return { labels: sorted.map((entry) => formatDateLabel(new Date(entry.date))), values: sorted.map((entry) => Number(entry.toolCallCount ?? entry.messageCount ?? 0)) };
+      return { labels: sorted.map((entry) => formatDateLabel(new Date(entry.date))), values: sorted.map((entry) => Number(entry.messageCount ?? 0)) };
     }
     const today = new Date();
-    const mock = Array.from({ length: 7 }, (_, index) => {
+    const emptySeries = Array.from({ length: 7 }, (_, index) => {
       const date = new Date(today);
       date.setDate(today.getDate() - (6 - index));
-      return { label: formatDateLabel(date), value: 12 + index * 3 + (index % 2 === 0 ? 5 : -2) };
+      return { label: formatDateLabel(date), value: 0 };
     });
-    return { labels: mock.map((entry) => entry.label), values: mock.map((entry) => entry.value) };
+    return { labels: emptySeries.map((entry) => entry.label), values: emptySeries.map((entry) => entry.value) };
   });
 
   const donutSeries = $derived.by(() => {
@@ -90,45 +87,20 @@
   });
 
   const recentPlans = $derived.by<PlanSummary[]>(() => {
-    const source = plans.length > 0 ? plans : fallbackPlans;
-    return [...source].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 5);
+    return [...plans]
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 5);
   });
-
-  const statItems = $derived.by(() => [
-    { title: 'Active Plans', value: metrics.activePlans, note: 'steady this week', icon: FolderKanban, iconClass: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300', trend: true, progress: null },
-    { title: 'Tasks Completed', value: metrics.doneTasks, note: 'Across all active workstreams', icon: CheckCircle2, iconClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', trend: false, progress: null },
-    { title: 'Completion Rate', value: `${metrics.completionRate}%`, note: 'Healthy execution pace', icon: TrendingUp, iconClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', trend: false, progress: metrics.completionRate },
-    { title: 'Total Agents', value: '74', note: '65 Claude + 9 Copilot', icon: Bot, iconClass: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300', trend: false, progress: null }
-  ]);
 </script>
 
 <div class="space-y-8">
   <PageHeader title="Dashboard" description="Overview of your AI agent orchestration" />
 
   <section class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-    {#each statItems as item (item.title)}
-      <div class="group rounded-xl border border-zinc-200/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-zinc-900/10 dark:border-zinc-800">
-        <Card variant="bordered">
-          {#snippet children()}
-            <div class="space-y-3">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-sm text-zinc-600 dark:text-zinc-400">{item.title}</p>
-                  <p class="mt-1 text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{item.value}</p>
-                  {#if item.trend}
-                    <p class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-300"><ArrowUpRight class="h-3.5 w-3.5" />{item.note}</p>
-                  {:else}
-                    <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{item.note}</p>
-                  {/if}
-                </div>
-                <span class={`rounded-xl p-2.5 ${item.iconClass}`}><svelte:component this={item.icon} class="h-5 w-5" /></span>
-              </div>
-              {#if item.progress !== null}<Progress value={item.progress} variant="primary" size="sm" />{/if}
-            </div>
-          {/snippet}
-        </Card>
-      </div>
-    {/each}
+    <StatCard value={metrics.totalPlans} label="Total Plans" icon="LayoutDashboard" variant="primary" />
+    <StatCard value={metrics.doneTasks} label="Tasks Done" trend={metrics.completionRate} icon="CheckCircle2" variant="success" />
+    <StatCard value={metrics.activePlans} label="Active Plans" icon="Activity" variant="warning" />
+    <StatCard value={`${metrics.completionRate}%`} label="Completion" icon="TrendingUp" variant="default" />
   </section>
 
   <section class="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -136,8 +108,8 @@
       <Card variant="bordered">
         {#snippet children()}
           <div class="space-y-4">
-            <div><h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">7-day Activity</h2><p class="text-sm text-zinc-600 dark:text-zinc-400">Tool and message execution volume over time</p></div>
-            <LineChart labels={activitySeries.labels} datasets={[{ label: 'Activity', data: activitySeries.values, color: '#6366f1' }]} showArea={true} height={320} />
+            <div><h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">7-day Activity</h2><p class="text-sm text-zinc-600 dark:text-zinc-400">Daily message count over time</p></div>
+            <LineChart labels={activitySeries.labels} datasets={[{ label: 'Messages', data: activitySeries.values, color: '#6366f1' }]} showArea={true} height={320} />
           </div>
         {/snippet}
       </Card>
@@ -160,23 +132,29 @@
       {#snippet children()}
         <div class="space-y-4">
           <div class="flex items-center justify-between gap-3">
-            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Recent Activity</h2>
+            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Recent Plans</h2>
             <a href="/plans" class="text-sm font-medium text-primary-600 transition hover:text-primary-500 dark:text-primary-300 dark:hover:text-primary-200">View all plans →</a>
           </div>
           <div class="space-y-3">
-            {#each recentPlans as plan (plan.id)}
-              {@const progress = completionForPlan(plan)}
-              <div class="rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-4 transition hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-700">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <p class="font-medium text-zinc-900 dark:text-zinc-100">{plan.name}</p>
-                  <div class="flex items-center gap-2">
-                    <Badge variant={statusMeta[plan.status].variant} size="sm" dot>{statusMeta[plan.status].label}</Badge>
-                    <span class="text-xs text-zinc-500 dark:text-zinc-400">{toRelativeTime(plan.updated_at)}</span>
+            {#if recentPlans.length > 0}
+              {#each recentPlans as plan (plan.id)}
+                {@const progress = completionForPlan(plan)}
+                <div class="rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-4 transition hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-700">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="font-medium text-zinc-900 dark:text-zinc-100">{plan.name}</p>
+                    <div class="flex items-center gap-2">
+                      <Badge variant={statusMeta[plan.status].variant} size="sm" dot>{statusMeta[plan.status].label}</Badge>
+                      <span class="text-xs text-zinc-500 dark:text-zinc-400">{toRelativeTime(plan.updated_at)}</span>
+                    </div>
                   </div>
+                  <div class="mt-3"><Progress value={progress} variant={plan.status === 'done' ? 'success' : 'primary'} size="sm" /></div>
                 </div>
-                <div class="mt-3"><Progress value={progress} variant={plan.status === 'done' ? 'success' : 'primary'} size="sm" /></div>
+              {/each}
+            {:else}
+              <div class="rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
+                No plans found.
               </div>
-            {/each}
+            {/if}
           </div>
         </div>
       {/snippet}
