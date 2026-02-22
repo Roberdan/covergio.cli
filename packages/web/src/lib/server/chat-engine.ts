@@ -129,9 +129,15 @@ class MockChatEngine implements ChatEngine {
       };
     }
 
-    for (const word of content.split(/(\s+)/)) {
-      yield { type: 'token', content: word };
-      await sleep(25 + Math.random() * 25);
+    // Send in line-based chunks for faster streaming
+    for (const line of content.split('\n')) {
+      const words = line.split(/\s+/).filter(Boolean);
+      for (let i = 0; i < words.length; i += 3) {
+        const chunk = words.slice(i, i + 3).join(' ') + ' ';
+        yield { type: 'token', content: chunk };
+        await sleep(15);
+      }
+      yield { type: 'token', content: '\n' };
     }
     yield { type: 'done' };
   }
