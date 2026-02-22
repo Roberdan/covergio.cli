@@ -43,9 +43,10 @@
     const icons = LucideIcons as Record<string, LucideComponent>;
     return icons[name] ?? Circle;
   };
+
+  const IconComponent = $derived(resolveIcon(icon));
 </script>
 
-{@const IconComponent = resolveIcon(icon)}
 <div class={`rounded-xl border p-4 shadow-sm transition sm:p-5 ${variantStyles[variant].card}`}>
   <div class="flex items-start justify-between gap-4">
     <div>
@@ -53,7 +54,7 @@
       <p class="mt-1 text-2xl font-bold sm:text-3xl">{value}</p>
     </div>
     <div class={`rounded-lg p-2 ${variantStyles[variant].icon}`}>
-      <svelte:component this={IconComponent} class="h-5 w-5" />
+      <IconComponent class="h-5 w-5" />
     </div>
   </div>
 

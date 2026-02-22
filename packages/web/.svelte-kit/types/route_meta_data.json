@@ -1,0 +1,44 @@
+{
+	"/(app)": [],
+	"/": [],
+	"/(app)/agents": [
+		"src/routes/(app)/agents/+page.server.ts"
+	],
+	"/api/agents": [
+		"src/routes/api/agents/+server.ts"
+	],
+	"/api/events": [
+		"src/routes/api/events/+server.ts"
+	],
+	"/api/git-status": [
+		"src/routes/api/git-status/+server.ts"
+	],
+	"/api/kanban": [
+		"src/routes/api/kanban/+server.ts"
+	],
+	"/api/metrics": [
+		"src/routes/api/metrics/+server.ts"
+	],
+	"/api/plans": [
+		"src/routes/api/plans/+server.ts"
+	],
+	"/api/plans/[id]": [
+		"src/routes/api/plans/[id]/+server.ts"
+	],
+	"/api/test-results": [
+		"src/routes/api/test-results/+server.ts"
+	],
+	"/(app)/dashboard": [
+		"src/routes/(app)/dashboard/+page.server.ts"
+	],
+	"/(app)/metrics": [
+		"src/routes/(app)/metrics/+page.server.ts"
+	],
+	"/(app)/plans": [
+		"src/routes/(app)/plans/+page.server.ts"
+	],
+	"/(app)/plans/[id]": [
+		"src/routes/(app)/plans/[id]/+page.server.ts"
+	],
+	"/(app)/settings": []
+}

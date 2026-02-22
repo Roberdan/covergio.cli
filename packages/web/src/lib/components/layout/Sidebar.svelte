@@ -96,8 +96,7 @@
                 class:justify-center={$sidebarCollapsed}
                 title={$sidebarCollapsed ? item.label : undefined}
               >
-                {@const Icon = item.icon}
-                <Icon class="h-5 w-5 shrink-0" />
+                <svelte:component this={item.icon} class="h-5 w-5 shrink-0" />
 
                 {#if !$sidebarCollapsed}
                   <span class="ml-3 flex-1">{item.label}</span>
@@ -186,8 +185,7 @@
                 }`}
                 onclick={appShellStore.closeSidebarMobile}
               >
-                {@const Icon = item.icon}
-                <Icon class="h-5 w-5 shrink-0" />
+                <svelte:component this={item.icon} class="h-5 w-5 shrink-0" />
                 <span class="ml-3 flex-1">{item.label}</span>
                 {#if item.badge !== undefined}
                   <span
