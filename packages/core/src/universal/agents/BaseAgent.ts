@@ -14,6 +14,7 @@ import {
   AgentRequest,
   AgentResponse,
   AgentConfig,
+  MemoryItem,
   Capability,
   PersonalityTrait,
   ToolDefinition,
@@ -32,23 +33,39 @@ const DEFAULT_CIRCUIT_BREAKER_CONFIG = {
 };
 
 /**
+ * Internal configuration for BaseAgent extending AgentConfig
+ */
+interface BaseAgentInternalConfig extends Partial<AgentConfig> {
+  maxRetries: number;
+  retryDelay: number;
+  timeout: number;
+  maxInputSize?: number;
+  circuitBreaker: {
+    failureThreshold: number;
+    successThreshold: number;
+    timeout: number;
+    resetTimeout: number;
+  };
+}
+
+/**
  * Simple in-memory agent memory implementation
  */
 export class SimpleAgentMemory implements AgentMemory {
-  private items = new Map<string, any>();
+  private items = new Map<string, MemoryItem>();
   private nextId = 1;
 
-  async store(item: any): Promise<string> {
+  async store(item: MemoryItem): Promise<string> {
     const id = `mem-${this.nextId++}`;
     this.items.set(id, {
-      id,
       ...item,
+      id,
       timestamp: item.timestamp || new Date()
     });
     return id;
   }
 
-  async retrieve(query: string, limit = 10): Promise<any[]> {
+  async retrieve(query: string, limit = 10): Promise<MemoryItem[]> {
     const results = Array.from(this.items.values())
       .filter(item => item.content && item.content.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
@@ -57,7 +74,7 @@ export class SimpleAgentMemory implements AgentMemory {
     return results;
   }
 
-  async update(id: string, item: Partial<any>): Promise<void> {
+  async update(id: string, item: Partial<MemoryItem>): Promise<void> {
     const existing = this.items.get(id);
     if (existing) {
       this.items.set(id, { ...existing, ...item });
@@ -109,10 +126,13 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
   private _lastActivity: Date = new Date();
   
   /** Agent configuration */
-  private _config: AgentConfig;
+  private _config: BaseAgentInternalConfig;
   
   /** Circuit breaker for handling failures */
   private _circuitBreaker: CircuitBreaker;
+  
+  /** Recovery timeout handle */
+  private _recoveryTimeout: ReturnType<typeof setTimeout> | null = null;
   
   /** Agent definition */
   protected definition: AgentDefinition;
@@ -338,7 +358,7 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
           await this.withStateLock(async () => {
             this._state = 'error';
             // Schedule recovery after a delay
-            setTimeout(() => this.recoverFromError(), 5000);
+            this._recoveryTimeout = setTimeout(() => this.recoverFromError(), 5000);
           });
           
           const errorResponse: AgentResponse = {
@@ -778,7 +798,7 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
       });
       
       // Schedule another recovery attempt
-      setTimeout(() => void this.recoverFromError(), 30000);
+      this._recoveryTimeout = setTimeout(() => void this.recoverFromError(), 30000);
     }
   }
 
@@ -798,7 +818,7 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
       // Validate input size if present
       if (request.input) {
         const inputStr = JSON.stringify(request.input);
-        const maxInputSize = (this._config as any).maxInputSize || 1024 * 1024; // 1MB default
+        const maxInputSize = this._config.maxInputSize || 1024 * 1024; // 1MB default
         
         if (inputStr.length > maxInputSize) {
           throw new Error(`Input size (${inputStr.length} bytes) exceeds maximum allowed size (${maxInputSize} bytes)`);
@@ -818,10 +838,10 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
         error: errorMessage,
         correlationId: this._correlationId,
         request: {
-          hasInput: !!(request as any)?.input,
-          inputType: (request as any)?.input ? typeof (request as any).input : undefined,
-          hasContext: !!(request as any)?.context,
-          contextType: (request as any)?.context ? typeof (request as any).context : undefined
+          hasInput: !!request?.input,
+          inputType: request?.input ? typeof request.input : undefined,
+          hasContext: !!request?.context,
+          contextType: request?.context ? typeof request.context : undefined
         }
       });
       throw error; // Re-throw to be handled by the caller
@@ -876,22 +896,22 @@ export abstract class BaseAgent extends EventEmitter implements IAgent, IAgentLi
       this.removeAllListeners();
       
       // Clear any intervals or timeouts
-      if ((this as any)._recoveryTimeout) {
-        clearTimeout((this as any)._recoveryTimeout);
+      if (this._recoveryTimeout) {
+        clearTimeout(this._recoveryTimeout);
       }
       
       // Set state to destroyed
-      (this as any)._state = 'destroyed';
+      this._state = 'destroyed' as AgentState;
       
       logger.info('Agent destroyed', {
         agentId: this.id,
-        correlationId: (this as any)._correlationId
+        correlationId: this._correlationId
       });
     } catch (error: unknown) {
       logger.error('Error destroying agent', {
         agentId: this.id,
         error: error instanceof Error ? error.message : String(error),
-        correlationId: (this as any)._correlationId
+        correlationId: this._correlationId
       });
       throw error;
     }

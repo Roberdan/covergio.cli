@@ -11,12 +11,13 @@ import {
   ConversationMessage,
   GroupChatConfig,
   AutoGenEvents,
+  AutoGenAgent,
   AgentBridge,
   BridgeError,
   AgentCreationError,
   ConversationError
 } from '../types';
-import { AgentDefinition, AgentCapability, AgentPersonality } from '../../universal/agents/types';
+import { AgentDefinition, AgentCapability, AgentPersonality, IAgent } from '../../universal/agents/types';
 
 /**
  * Configuration for the Python AutoGen Bridge
@@ -478,7 +479,7 @@ export class PythonAutoGenBridge extends EventEmitter implements AgentBridge {
   /**
    * Synchronize state between systems
    */
-  async synchronizeState(universalAgent: any, autoGenAgent: any): Promise<void> {
+  async synchronizeState(universalAgent: IAgent, autoGenAgent: AutoGenAgent): Promise<void> {
     // Implementation for state synchronization
     // This would keep both systems in sync
   }

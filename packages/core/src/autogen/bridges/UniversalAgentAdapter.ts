@@ -15,12 +15,14 @@ import {
   Capability,
   PersonalityTrait,
   ToolDefinition,
+  ToolParameter,
   AgentContext
 } from '../../universal/agents/types';
 import {
   AutoGenAgentConfig,
   ConversationMessage,
   AutoGenTool,
+  AutoGenAgent,
   LLMConfig,
   AgentBridge,
   BridgeError
@@ -34,7 +36,7 @@ interface StateSyncData {
   lastSync: Date;
   pendingUpdates: string[];
   conversationHistory: ConversationMessage[];
-  context: Record<string, any>;
+  context: Record<string, unknown>;
 }
 
 /**
@@ -50,6 +52,23 @@ interface AgentMapping {
     autoGen: AutoGenAgentConfig;
   };
   state: StateSyncData;
+}
+
+/**
+ * JSON Schema property descriptor used in AutoGen parameter conversion
+ */
+interface JsonSchemaProperty {
+  type?: string;
+  description?: string;
+}
+
+/**
+ * JSON Schema parameters structure for AutoGen tools
+ */
+interface JsonSchemaParameters {
+  type: string;
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
 }
 
 /**
@@ -262,7 +281,7 @@ export class UniversalAgentAdapter extends EventEmitter implements AgentBridge {
    */
   async synchronizeState(
     universalAgent: IAgent,
-    autoGenAgent: any
+    autoGenAgent: AutoGenAgent
   ): Promise<void> {
     const mapping = this.agentMappings.get(universalAgent.id);
     if (!mapping) {
@@ -504,7 +523,7 @@ export class UniversalAgentAdapter extends EventEmitter implements AgentBridge {
     return codeExecutionDomains.includes(domain.toLowerCase());
   }
 
-  private buildParametersFromCapability(capability: Capability): Record<string, any> {
+  private buildParametersFromCapability(capability: Capability): Record<string, { type: string; description: string }> {
     // This would map capability parameters to JSON schema format
     // For now, return a basic structure
     return {
@@ -520,8 +539,8 @@ export class UniversalAgentAdapter extends EventEmitter implements AgentBridge {
     return ['input'];
   }
 
-  private createCapabilityImplementation(capability: Capability): (args: any) => Promise<any> {
-    return async (args: any) => {
+  private createCapabilityImplementation(capability: Capability): (args: Record<string, unknown>) => Promise<string> {
+    return async (args: Record<string, unknown>) => {
       // This would delegate to the actual capability implementation
       return `Executed capability: ${capability.name} with args: ${JSON.stringify(args)}`;
     };
@@ -636,16 +655,15 @@ export class UniversalAgentAdapter extends EventEmitter implements AgentBridge {
     }));
   }
 
-  private convertParametersToUniversal(parameters: any): any[] {
-    // Convert JSON schema parameters to Universal Tool parameters
-    const result: any[] = [];
+  private convertParametersToUniversal(parameters: JsonSchemaParameters): ToolParameter[] {
+    const result: ToolParameter[] = [];
     
     if (parameters.properties) {
-      for (const [name, prop] of Object.entries(parameters.properties as any)) {
+      for (const [name, prop] of Object.entries(parameters.properties)) {
         result.push({
           name,
-          type: (prop as any).type || 'string',
-          description: (prop as any).description || '',
+          type: (prop.type || 'string') as ToolParameter['type'],
+          description: prop.description || '',
           required: parameters.required?.includes(name) || false
         });
       }
@@ -708,7 +726,7 @@ export class UniversalAgentAdapter extends EventEmitter implements AgentBridge {
     };
   }
 
-  private handleAutoGenMessage(event: any): void {
+  private handleAutoGenMessage(event: unknown): void {
     // Handle incoming messages from AutoGen
     this.emit('autoGenMessage', event);
   }

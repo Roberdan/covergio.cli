@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AgentDefinition, AgentCapability, AgentPersonality } from '../universal/agents/types';
+import { AgentDefinition, AgentCapability, AgentPersonality, IAgent } from '../universal/agents/types';
 
 /**
  * AutoGen Agent Configuration (matches Python AutoGen structure)
@@ -199,7 +199,7 @@ export interface AgentBridge {
   mapPersonality(personality: AgentPersonality): string;
   
   synchronizeState(
-    universalAgent: any,
+    universalAgent: IAgent,
     autoGenAgent: AutoGenAgent
   ): Promise<void>;
 }

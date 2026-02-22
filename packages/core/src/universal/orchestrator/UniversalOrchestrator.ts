@@ -6,6 +6,11 @@
 
 import { BaseOrchestrator } from './BaseOrchestrator.js';
 import { AgentInstance, AgentCapability } from '../types/common.js';
+import { OrchestrationRequest, OrchestrationResponse } from '../interfaces/IOrchestrator.js';
+import { IRequestAnalyzer, IRequestRouter } from '../interfaces/IRequestHandler.js';
+import { IWorkflowManager } from '../interfaces/IWorkflowManager.js';
+import { IEventSystem } from '../interfaces/IEventSystem.js';
+import { OrchestratorConfig } from '../config/OrchestratorConfig.js';
 import { MarkItDownAgent } from '../agents/MarkItDownAgent.js';
 import { ImageAltTextAgent } from '../agents/ImageAltTextAgent.js';
 import { AgentFactory } from '../agents/AgentFactory.js';
@@ -18,11 +23,11 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   private performanceManager: PerformanceManager;
   
   constructor(
-    config: any,
-    requestAnalyzer: any,
-    requestRouter: any,
-    workflowManager: any,
-    eventSystem: any,
+    config: OrchestratorConfig,
+    requestAnalyzer: IRequestAnalyzer,
+    requestRouter: IRequestRouter,
+    workflowManager: IWorkflowManager,
+    eventSystem: IEventSystem,
     agentFactory?: AgentFactory,
     performanceConfig?: Partial<PerformanceConfig>
   ) {
@@ -91,7 +96,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
         };
         return await this.agentFactory.createAgent(config);
       },
-      (agent: any) => agent && typeof agent.execute === 'function',
+      (agent: unknown) => agent != null && typeof (agent as Record<string, unknown>).execute === 'function',
       3
     );
 
@@ -106,7 +111,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
         };
         return new MarkItDownAgent(config);
       },
-      (agent: any) => agent && typeof agent.processRequest === 'function',
+      (agent: unknown) => agent != null && typeof (agent as Record<string, unknown>).processRequest === 'function',
       2
     );
 
@@ -121,7 +126,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
         };
         return new ImageAltTextAgent(config);
       },
-      (agent: any) => agent && typeof agent.execute === 'function',
+      (agent: unknown) => agent != null && typeof (agent as Record<string, unknown>).execute === 'function',
       2
     );
 
@@ -515,7 +520,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   /**
    * Route markdown-related requests to the MarkItDown agent
    */
-  private isMarkdownRequest(request: any): boolean {
+  private isMarkdownRequest(request: OrchestrationRequest): boolean {
     const markdownKeywords = [
       'markdown', 'md', 'parse', 'heading', 'table of contents', 'toc',
       'convert to html', 'html', 'document structure', 'extract links',
@@ -529,7 +534,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   /**
    * Route image-related requests to the ImageAltText agent
    */
-  private isImageProcessingRequest(request: any): boolean {
+  private isImageProcessingRequest(request: OrchestrationRequest): boolean {
     const imageKeywords = [
       'image', 'img', 'alt text', 'alt-text', 'alternative text',
       'accessibility', 'screen reader', 'describe image', 'image description',
@@ -555,14 +560,14 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   /**
    * Direct request processing without performance optimizations (legacy)
    */
-  private async processRequestDirect(request: any): Promise<any> {
+  private async processRequestDirect(request: OrchestrationRequest): Promise<OrchestrationResponse> {
     return super.orchestrate(request);
   }
 
   /**
    * Process markdown requests with agent pooling
    */
-  private async processMarkdownRequest(request: any): Promise<any> {
+  private async processMarkdownRequest(request: OrchestrationRequest): Promise<OrchestrationResponse> {
     const agent = await this.performanceManager.getAgent('markdown');
     if (agent) {
       try {
@@ -588,14 +593,14 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   /**
    * Process image requests with agent pooling
    */
-  private async processImageRequest(request: any): Promise<any> {
+  private async processImageRequest(request: OrchestrationRequest): Promise<OrchestrationResponse> {
     const agent = await this.performanceManager.getAgent('image-alt-text');
     if (agent) {
       try {
         const response = await agent.execute({
           input: request.userInput,
           context: {
-            sessionId: request.sessionId || 'orchestrator-session',
+            sessionId: request.sessionContext?.sessionId || 'orchestrator-session',
             executionId: request.id,
             timestamp: new Date(),
             environment: {}
@@ -617,7 +622,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   /**
    * Enhanced orchestrate method with performance optimizations
    */
-  async orchestrate(request: any): Promise<any> {
+  async orchestrate(request: OrchestrationRequest): Promise<OrchestrationResponse> {
     const startTime = Date.now();
 
     try {
@@ -705,7 +710,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
   /**
    * Legacy orchestrate method as fallback
    */
-  private async orchestrateLegacy(request: any): Promise<any> {
+  private async orchestrateLegacy(request: OrchestrationRequest): Promise<OrchestrationResponse> {
     // Check if this is an image processing request
     if (this.isImageProcessingRequest(request)) {
       const imageAgent = this.agents.get('image-alt-text-specialist');
@@ -726,10 +731,10 @@ export class UniversalOrchestrator extends BaseOrchestrator {
           imageAgent.status = 'busy';
           
           // Process the request
-          const response = await (agent as any).execute({
+          const response = await agent.execute({
             input: request.userInput,
             context: {
-              sessionId: request.sessionId || 'orchestrator-session',
+              sessionId: request.sessionContext?.sessionId || 'orchestrator-session',
               executionId: request.id,
               timestamp: new Date(),
               environment: {}
@@ -794,7 +799,7 @@ export class UniversalOrchestrator extends BaseOrchestrator {
           markdownAgent.status = 'busy';
           
           // Process the request
-          const response = await (agent as any).processRequest({
+          const response = await (agent as unknown as { processRequest(req: { id: string; content: string; type: string; timestamp: Date }): Promise<unknown> }).processRequest({
             id: request.id,
             content: request.userInput,
             type: 'markdown-processing',
