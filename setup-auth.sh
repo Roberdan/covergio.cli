@@ -95,6 +95,47 @@ if [ -f "$ENV_FILE" ]; then
     echo ""
 fi
 
+# Function to validate API key against provider endpoint
+validate_api_key() {
+    local provider="$1"
+    local key="$2"
+
+    echo -n "Validating $provider key..."
+
+    case "$provider" in
+        gemini|GEMINI_API_KEY)
+            # Test Gemini key
+            response=$(curl -s -o /dev/null -w "%{http_code}" \
+                "https://generativelanguage.googleapis.com/v1/models?key=$key" 2>/dev/null)
+            ;;
+        openai|OPENAI_API_KEY)
+            # Test OpenAI key
+            response=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer $key" \
+                "https://api.openai.com/v1/models" 2>/dev/null)
+            ;;
+        anthropic|ANTHROPIC_API_KEY)
+            # Test Anthropic key
+            response=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "x-api-key: $key" \
+                -H "anthropic-version: 2023-06-01" \
+                "https://api.anthropic.com/v1/models" 2>/dev/null)
+            ;;
+        *)
+            echo " skipped (no validator for $provider)"
+            return 0
+            ;;
+    esac
+
+    if [ "$response" = "200" ]; then
+        echo " ✓ valid"
+        return 0
+    else
+        echo " ✗ invalid (HTTP $response)"
+        return 1
+    fi
+}
+
 # Function to add API key
 add_api_key() {
     local provider="$1"
@@ -115,6 +156,16 @@ add_api_key() {
         echo ""
         
         if [ -n "$api_key" ]; then
+            # Validate key before saving
+            if ! validate_api_key "$env_var" "$api_key"; then
+                read -p "Save anyway? (y/N): " save_anyway
+                if [[ ! "$save_anyway" =~ ^[Yy]$ ]]; then
+                    print_warning "Key not saved for $provider."
+                    echo ""
+                    return
+                fi
+            fi
+
             # Check if key already exists in file
             if grep -q "^$env_var=" "$ENV_FILE" 2>/dev/null; then
                 # Replace existing key

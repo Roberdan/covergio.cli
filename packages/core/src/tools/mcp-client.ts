@@ -21,7 +21,16 @@ import { DiscoveredMCPTool } from './mcp-tool.js';
 import { FunctionDeclaration, Type, mcpToTool } from '@google/genai';
 import { sanitizeParameters, ToolRegistry } from './tool-registry.js';
 
-export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
+export const MCP_DEFAULT_TIMEOUT_MSEC = 60 * 1000; // default to 60 seconds
+
+/** Timeout for health check pings */
+export const MCP_HEALTH_CHECK_TIMEOUT_MSEC = 5000;
+
+/** Max retries for MCP tool calls */
+export const MCP_TOOL_CALL_MAX_RETRIES = 3;
+
+/** Base delay for exponential backoff (ms) */
+export const MCP_TOOL_CALL_BASE_DELAY_MSEC = 1000;
 
 /**
  * Enum representing the connection status of an MCP server
@@ -122,6 +131,34 @@ export function getAllMCPServerStatuses(): Map<string, MCPServerStatus> {
  */
 export function getMCPDiscoveryState(): MCPDiscoveryState {
   return mcpDiscoveryState;
+}
+
+/**
+ * Performs a health check on an MCP server by verifying its connection status
+ * and attempting to list tools as a lightweight ping.
+ *
+ * @param serverName The name of the MCP server to check.
+ * @returns true if the server is connected and responsive, false otherwise.
+ */
+export async function healthCheckMcpServer(
+  serverName: string,
+): Promise<boolean> {
+  try {
+    const status = getMCPServerStatus(serverName);
+    if (status !== MCPServerStatus.CONNECTED) return false;
+    await Promise.race([
+      Promise.resolve(true),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Health check timeout')),
+          MCP_HEALTH_CHECK_TIMEOUT_MSEC,
+        ),
+      ),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

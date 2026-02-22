@@ -1,10 +1,25 @@
-# Convergio CLI
+# Convergio CLI v1.0.0
 
 [![Convergio CLI CI](https://github.com/convergio/convergio-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/convergio/convergio-cli/actions/workflows/ci.yml)
 
 ![Convergio CLI Screenshot](./docs/assets/convergio-screenshot.png)
 
-This repository contains the **Convergio CLI**, a comprehensive Universal AI Agent Orchestration Platform that transforms any conversation into specialized expert assistance through dynamic multi-agent collaboration, with enterprise-grade performance monitoring, security, and advanced document processing capabilities.
+This repository contains the **Convergio CLI v1.0.0**, a comprehensive Universal AI Agent Orchestration Platform that transforms any conversation into specialized expert assistance through dynamic multi-agent collaboration, with enterprise-grade performance monitoring, security, and advanced document processing capabilities.
+
+## 🏗️ Architecture
+
+Convergio CLI is built as a monorepo with four integrated packages:
+
+```
+convergio.cli/
+├── packages/core/                  # Runtime engine, agents, tools, MCP integration
+├── packages/cli/                   # Ink-based Terminal UI
+├── packages/vscode-ide-companion/  # VS Code extension
+├── packages/web/                   # SvelteKit Dashboard (NEW in v1.0.0)
+├── CLAUDE.md                       # AI agent instructions
+├── AGENTS.md                       # Cross-tool agent discovery
+└── docs/adr/                       # Architecture Decision Records
+```
 
 ## 🚀 Key Features
 
@@ -41,6 +56,65 @@ This repository contains the **Convergio CLI**, a comprehensive Universal AI Age
 - **🎛️ Enhanced CLI Interface**: React + Ink terminal UI with real-time multi-agent display
 - **💾 Vector Database**: Semantic search and similarity-based memory retrieval
 - **🔧 Advanced Commands**: Slash commands for agent management and domain exploration
+
+## 🌐 Web Dashboard (NEW in v1.0.0)
+
+Modern web interface built with SvelteKit 2 + Svelte 5 + Tailwind CSS:
+
+### Features
+- **📊 Dashboard Overview**: Real-time system metrics, active agents, and performance charts
+- **📋 Plan Management**: Kanban board + table view for task orchestration
+- **🤖 Agent Catalog**: Browse and configure 65+ Claude agents + 9 Copilot agents
+- **📈 Metrics & Charts**: Performance visualization with historical trends
+- **⚙️ Settings**: API configuration, theme customization, and system preferences
+- **🌙 Dark Mode**: Responsive design with real-time SSE updates
+
+### Quick Start
+```bash
+cd packages/web
+npm install
+npm run dev
+# Visit http://localhost:5173
+```
+
+### Deployment
+Ready for production deployment:
+- **Docker**: `docker build -t convergio-web .`
+- **Vercel**: `vercel deploy`
+- **Azure Static Web Apps**: GitHub Actions workflow included
+
+## 🔍 Agent Discovery
+
+Convergio provides centralized agent discovery across all AI tools:
+
+- **AGENTS.md**: Catalog of 65 Claude agents + 9 GitHub Copilot agents with descriptions, capabilities, and usage examples
+- **.claude/settings.json**: Claude Code configuration with tool allowlists and model preferences
+- **.github/copilot-instructions.md**: GitHub Copilot custom instructions for repository-specific behavior
+
+Agents are organized by category: orchestration, quality assurance, architecture, security, performance, documentation, and utilities.
+
+## 🛡️ Quality Gates
+
+Enterprise-grade quality enforcement with automated checks:
+
+### Pre-commit Hooks (Husky + lint-staged)
+- **lint-staged**: Automated formatting and linting on changed files only
+- **Secret scanning**: 21 pattern checks for API keys, tokens, and credentials
+- **TypeScript validation**: Type checking before commit
+
+### Pre-push Hooks
+- **Full typecheck**: Project-wide TypeScript strict mode validation
+- **Test suite**: Vitest unified testing across all packages
+- **Build verification**: Ensure code compiles successfully
+
+### Commit Message Validation
+- **Conventional Commits**: Enforced commit message format (`feat:`, `fix:`, `docs:`, etc.)
+- **Automated changelog**: Version management with semantic-release
+
+### CI/CD Pipeline
+- GitHub Actions workflows for continuous integration
+- Automated testing on multiple Node.js versions
+- Security scanning and dependency audits
 
 ## 🚀 Quick Start
 
@@ -98,8 +172,21 @@ For development and testing:
 
 ```bash
 npm run dev        # Development mode with hot reload
-npm run test       # Run test suite
+npm run test       # Run test suite (Vitest)
 npm run typecheck  # TypeScript validation
+npm run preflight  # Full quality gate check
+```
+
+### Option 4: Web Dashboard
+
+Run the web interface for visual agent management:
+
+```bash
+cd packages/web
+npm install
+npm run dev        # SvelteKit dev server at localhost:5173
+npm run build      # Production build
+npm run preview    # Preview production build
 ```
 
 ### 🔧 Installation Options
@@ -157,214 +244,90 @@ For detailed configuration options and troubleshooting, see the [authentication 
 
 ## Dependencies and Libraries
 
-### Core Dependencies
-
-Convergio CLI is built on several key technologies and libraries:
-
-- **Node.js 20+**: Runtime environment for the CLI and agent orchestration
-- **TypeScript**: Type-safe development and enhanced developer experience
-- **React + Ink**: Terminal UI components for interactive CLI experience
-- **Task-Master-AI**: Intelligent task decomposition and management system
+### Core Stack
+- **Node.js 20+** with TypeScript for type-safe development
+- **React + Ink** for interactive terminal UI
+- **SvelteKit 2 + Svelte 5** for web dashboard (v1.0.0)
+- **Task-Master-AI** for intelligent task decomposition
 
 ### Document Processing
+- **markitdown-ts v0.0.4**: Convert PDFs, Word, PowerPoint to Markdown
+- **MarkItDownAgent** + **ImageAltTextAgent**: Specialized document processing agents
+- Verify installation: `node verify-markitdown-simple.js`
 
-#### MarkItDown Integration
-
-Convergio CLI includes **MarkItDown** integration for advanced document processing and analysis:
-
-- **Library**: `markitdown-ts` v0.0.4 (TypeScript port of Microsoft's MarkItDown)
-- **Purpose**: Convert various document formats to Markdown for LLM processing
-- **Repository**: [microsoft/markitdown](https://github.com/microsoft/markitdown) (original Python)
-- **TypeScript Port**: [markitdown-ts](https://www.npmjs.com/package/markitdown-ts) (Node.js compatible)
-
-**Key Features:**
-- Document format conversion (HTML, PDF, Word, etc. to Markdown)
-- Image processing and analysis
-- Structured content extraction
-- LLM-optimized output formatting
-
-**Usage Examples:**
-```bash
-# Process a document with MarkItDown agent
-convergio process document.pdf
-
-# Convert multiple files to Markdown
-convergio batch-convert *.docx
-
-# Extract structured data from documents
-convergio extract-data presentation.pptx
-```
-
-**Agent Integration:**
-- **MarkItDownAgent**: Specialized agent for document processing
-- **ImageAltTextAgent**: Generate descriptive alt-text for images in documents
-- **Memory Integration**: Store processed documents in agent memory for later reference
-
-**Installation Verification:**
-To verify the MarkItDown installation is working correctly:
-```bash
-node verify-markitdown-simple.js          # Simple verification
-node scripts/verify-markitdown.js         # Comprehensive verification
-npx tsx verify-markitdown.ts              # TypeScript verification
-```
-
-### Performance & Monitoring Stack
-
-Convergio CLI includes a comprehensive enterprise-grade performance monitoring and optimization system:
-
-#### Core Performance Components
-- **CacheManager**: Multi-tier caching (Memory + Redis) with LRU/LFU eviction policies
-- **RequestQueue**: Priority-based request processing with load balancing
-- **CircuitBreaker**: Fault tolerance with automatic failure detection and recovery
-- **PerformanceManager**: Unified performance orchestration with agent pooling
-
-#### Observability & Metrics
-- **OpenTelemetry Integration**: Distributed tracing with correlation IDs
-- **MetricsCollector**: Real-time performance metrics with percentile calculations
-- **Prometheus Export**: Industry-standard metrics format for monitoring stacks
-
-#### Monitoring & Alerting
-- **DashboardManager**: Grafana-compatible dashboards with customizable widgets
-- **AlertingManager**: Multi-channel alerting (Email, Slack, PagerDuty, Webhook)
-- **ReportingManager**: Automated reports with runbook management
-- **Health Monitoring**: Component health tracking with automatic optimization
-
-#### Performance Features
-```bash
-# Monitor system performance
-convergio monitor --dashboard performance    # View performance dashboard
-convergio health --detailed                  # Comprehensive health check
-convergio metrics --export prometheus        # Export metrics for monitoring
-
-# Performance optimization
-convergio cache clear --pattern "expired:*"  # Clear expired cache entries
-convergio queue status --show-utilization    # View queue performance
-convergio circuit-breaker status             # Check circuit breaker states
-```
+### Performance Stack
+- **OpenTelemetry**: Distributed tracing with correlation IDs
+- **CacheManager**: Multi-tier caching (Memory + Redis) with LRU/LFU eviction
+- **RequestQueue**: Priority-based processing with load balancing
+- **CircuitBreaker**: Fault tolerance with automatic recovery
+- **MetricsCollector**: Real-time performance metrics and Prometheus export
 
 ### Multi-Agent Framework
-
-- **AutoGen Integration**: Microsoft AutoGen for sophisticated agent conversations
-- **Agent Factory**: Dynamic agent creation and management system
-- **Memory Engine**: Cross-agent memory sharing and context management with vector database
-- **Orchestration Engine**: Universal orchestrator for multi-agent workflows with performance optimization
-- **Security Framework**: End-to-end encryption and role-based access control
-- **Compliance System**: GDPR, HIPAA, and SOC2 compliance features
+- **AutoGen Integration**: Microsoft AutoGen for agent conversations
+- **Agent Factory**: Dynamic agent creation and lifecycle management
+- **Memory Engine**: Cross-agent memory with vector database
+- **Security Framework**: OAuth 2.0, RBAC, AES-256 encryption, TLS 1.3
+- **Compliance**: GDPR, HIPAA, SOC2 ready
 
 ## Examples
 
-Once the CLI is running, you can start interacting with Convergio's multi-agent system from your shell.
-
-You can start a project from a new directory:
-
+### Multi-Agent Development
 ```sh
 cd new-project/
 convergio
-> Create a Discord bot using multiple specialized agents - one for FAQ processing, one for user interaction, and one for monitoring
+> Create a Discord bot using specialized agents for FAQ, interaction, and monitoring
 ```
 
-Or work with an existing project:
-
+### Collaborative Code Analysis
 ```sh
-git clone https://github.com/convergio/convergio-cli
 cd convergio-cli
 convergio
-> Orchestrate agents to analyze yesterday's changes: one for git analysis, one for code review, and one for impact assessment
+> Deploy agents to analyze yesterday's changes: git analysis, code review, and impact assessment
 ```
+
+### Document Processing
+```text
+> Use MarkItDown agents to process PDFs and create a unified knowledge base
+> Deploy ImageAltText agent to generate alt-text for all documentation images
+```
+
+### Performance Monitoring
+```text
+> Set up monitoring: dashboard agents for visualization and alerting for notifications
+> Deploy observability agents to analyze traces and generate performance insights
+```
+
+See [CLI Commands](./docs/cli/commands.md) and [popular tasks](#popular-tasks) for more examples.
 
 ### Next steps
 
-- Learn how to [contribute to or build from the source](./CONTRIBUTING.md).
-- Explore the available **[CLI Commands](./docs/cli/commands.md)**.
-- If you encounter any issues, review the **[Troubleshooting guide](./docs/troubleshooting.md)**.
-- For more comprehensive documentation, see the [full documentation](./docs/index.md).
-- Take a look at some [popular tasks](#popular-tasks) for more inspiration.
-
-### Troubleshooting
-
-Head over to the [troubleshooting](docs/troubleshooting.md) guide if you're
-having issues.
+- [Contributing guide](./CONTRIBUTING.md) - Build from source
+- [CLI Commands](./docs/cli/commands.md) - Available commands
+- [Troubleshooting](./docs/troubleshooting.md) - Common issues
+- [Full Documentation](./docs/index.md) - Comprehensive docs
+- [Popular tasks](#popular-tasks) - Usage examples
 
 ## Popular tasks
 
-### Multi-Agent Codebase Analysis
-
-Start by `cd`ing into an existing or newly-cloned repository and running `convergio`.
-
+### Multi-Agent Development
 ```text
-> Deploy three agents to analyze this system: one for architecture analysis, one for security review, and one for performance assessment.
+> Analyze this system: architecture, security, and performance assessment agents
+> Implement GitHub issue #123: planning, coding, and testing agents
+> Migrate to latest Java: migration planning and execution agents
 ```
 
+### Document Processing
 ```text
-> Create a documentation agent and a code analysis agent to work together on documenting this API.
-```
-
-### Collaborative Development
-
-```text
-> Orchestrate agents to implement GitHub issue #123: one for planning, one for coding, and one for testing.
-```
-
-```text
-> Deploy a migration planning agent and execution agent to help migrate this codebase to the latest version of Java.
-```
-
-### Document Processing Workflows
-
-Leverage MarkItDown integration for advanced document processing:
-
-```text
-> Use MarkItDown agents to process all PDFs in this directory and create a unified knowledge base.
-```
-
-```text
-> Deploy an ImageAltText agent to generate descriptive alt-text for all images in my documentation.
-```
-
-```text
-> Create a document analysis workflow: one agent for content extraction, one for summarization, and one for knowledge graph generation.
-```
-
-### Performance Monitoring & Optimization
-
-Monitor and optimize system performance with enterprise-grade tools:
-
-```text
-> Set up comprehensive monitoring: deploy dashboard agents for performance visualization and alerting agents for real-time notifications.
-```
-
-```text
-> Create a performance optimization workflow: one agent for cache analysis, one for queue optimization, and one for resource management.
-```
-
-```text
-> Deploy observability agents to analyze OpenTelemetry traces and generate performance insights with automated recommendations.
+> Process all PDFs and create a unified knowledge base with MarkItDown agents
+> Generate alt-text for all images with ImageAltTextAgent
+> Document analysis workflow: extraction, summarization, and knowledge graph agents
 ```
 
 ### Enterprise Automation
-
-Use multi-agent orchestration with comprehensive monitoring:
-
 ```text
-> Create a presentation agent, data analysis agent, and git history agent to make a slide deck showing the last 7 days of development.
-```
-
-```text
-> Deploy monitoring agents to create a full-screen web app displaying our most interacted-with GitHub issues with real-time updates.
-```
-
-```text
-> Orchestrate security agents for compliance reporting: one for audit log analysis, one for access control review, and one for vulnerability assessment.
-```
-
-### System Integration
-
-```text
-> Coordinate multiple agents to convert all images in this directory to png, with one agent handling conversion and another managing file organization by date.
-```
-
-```text
-> Use document processing agents to organize my PDF invoices by month of expenditure, with automatic data extraction and categorization.
+> Create slide deck of last 7 days: presentation, data analysis, and git history agents
+> Build web app showing top GitHub issues with real-time updates
+> Compliance reporting: audit log, access control, and vulnerability assessment agents
 ```
 
 ### Uninstall

@@ -1,0 +1,32 @@
+@import './lib/styles/unified-design-system.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+@media (pointer: coarse) {
+  button,
+  [role='button'],
+  input,
+  select,
+  textarea,
+  a.inline-flex,
+  a.inline-block,
+  a.block {
+    min-height: 44px;
+  }
+
+  button,
+  [role='button'],
+  a.inline-flex,
+  a.inline-block,
+  a.block {
+    min-width: 44px;
+  }
+}

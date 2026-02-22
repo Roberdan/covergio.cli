@@ -1,18 +1,27 @@
-## TLDR
+## Description
 
-<!-- Add a brief description of what this pull request changes and why and any important things for reviewers to look at -->
+<!-- What does this PR change and why? Important things for reviewers to look at. -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking change that fixes an issue)
+- [ ] New feature (non-breaking change that adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to change)
+- [ ] Refactor (no functional changes)
+- [ ] Documentation update
+- [ ] CI/CD or infrastructure change
 
 ## Dive Deeper
 
-<!-- more thoughts and in depth discussion here -->
+<!-- More thoughts and in-depth discussion here -->
 
-## Reviewer Test Plan
+## Testing
 
-<!-- when a person reviews your code they should ideally be pulling and running that code. How would they validate your change works and if relevant what are some good classes of example prompts and ways they can exercise your changes -->
+<!-- How would a reviewer validate this change? Example prompts, edge cases, etc. -->
 
-## Testing Matrix
+### Testing Matrix
 
-<!-- Before submitting please validate your changes on as many of these options as possible -->
+<!-- Validate your changes on as many of these options as possible -->
 
 |          | 🍏  | 🪟  | 🐧  |
 | -------- | --- | --- | --- |
@@ -22,20 +31,19 @@
 | Podman   | ❓  | -   | -   |
 | Seatbelt | ❓  | -   | -   |
 
-## Linked issues / bugs
+## Checklist
+
+- [ ] My code follows the project coding standards
+- [ ] I have performed a self-review of my code
+- [ ] I have added/updated tests that prove my fix or feature works
+- [ ] New and existing unit tests pass locally (`npm run preflight`)
+- [ ] I have updated documentation where necessary
+- [ ] My changes generate no new warnings or errors
+- [ ] I have checked for potential security issues (no secrets committed)
+
+## Linked Issues
 
 <!--
-Link to any related issues or bugs.
-
-**If this PR fully resolves the issue, use one of the following keywords to automatically close the issue when this PR is merged:**
-
-- Closes #<issue_number>
-- Fixes #<issue_number>
-- Resolves #<issue_number>
-
-*Example: `Resolves #123`*
-
-**If this PR is only related to an issue or is a partial fix, simply reference the issue number without a keyword:**
-
-*Example: `This PR makes progress on #456` or `Related to #789`*
+Use keywords to auto-close: Closes #123, Fixes #456, Resolves #789
+Or reference without closing: Related to #123
 -->

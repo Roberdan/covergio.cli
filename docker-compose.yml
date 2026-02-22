@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  web:
+    build:
+      context: packages/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - ~/.claude/data:/home/sveltekit/.claude/data:ro
+      - ~/.claude/agents:/home/sveltekit/.claude/agents:ro
+      - ~/.claude/copilot-agents:/home/sveltekit/.claude/copilot-agents:ro
+      - ~/.claude/stats-cache.json:/home/sveltekit/.claude/stats-cache.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

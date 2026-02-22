@@ -12,6 +12,12 @@ import {
   ToolMcpConfirmationDetails,
 } from './tools.js';
 import { CallableTool, Part, FunctionCall, Schema } from '@google/genai';
+import {
+  getMCPServerStatus,
+  MCPServerStatus,
+  MCP_TOOL_CALL_MAX_RETRIES,
+  MCP_TOOL_CALL_BASE_DELAY_MSEC,
+} from './mcp-client.js';
 
 type ToolParams = Record<string, unknown>;
 
@@ -74,6 +80,14 @@ export class DiscoveredMCPTool extends BaseTool<ToolParams, ToolResult> {
   }
 
   async execute(params: ToolParams): Promise<ToolResult> {
+    const serverStatus = getMCPServerStatus(this.serverName);
+    if (serverStatus !== MCPServerStatus.CONNECTED) {
+      return {
+        llmContent: `MCP server '${this.serverName}' is not connected (status: ${serverStatus}). Cannot execute tool '${this.serverToolName}'.`,
+        returnDisplay: `Error: MCP server '${this.serverName}' is not connected.`,
+      };
+    }
+
     const functionCalls: FunctionCall[] = [
       {
         name: this.serverToolName,
@@ -81,11 +95,29 @@ export class DiscoveredMCPTool extends BaseTool<ToolParams, ToolResult> {
       },
     ];
 
-    const responseParts: Part[] = await this.mcpTool.callTool(functionCalls);
+    let lastError: unknown;
+    for (let attempt = 0; attempt < MCP_TOOL_CALL_MAX_RETRIES; attempt++) {
+      try {
+        const responseParts: Part[] =
+          await this.mcpTool.callTool(functionCalls);
+        return {
+          llmContent: responseParts,
+          returnDisplay: getStringifiedResultForDisplay(responseParts),
+        };
+      } catch (error) {
+        lastError = error;
+        if (attempt < MCP_TOOL_CALL_MAX_RETRIES - 1) {
+          const delay = MCP_TOOL_CALL_BASE_DELAY_MSEC * Math.pow(2, attempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
 
+    const errorMessage =
+      lastError instanceof Error ? lastError.message : String(lastError);
     return {
-      llmContent: responseParts,
-      returnDisplay: getStringifiedResultForDisplay(responseParts),
+      llmContent: `MCP tool '${this.serverToolName}' on server '${this.serverName}' failed after ${MCP_TOOL_CALL_MAX_RETRIES} retries: ${errorMessage}`,
+      returnDisplay: `Error: MCP tool call failed after ${MCP_TOOL_CALL_MAX_RETRIES} retries: ${errorMessage}`,
     };
   }
 }

@@ -63,3 +63,6 @@ node_modules/
 # Task files
 # tasks.json
 # tasks/ 
+
+# Code graph cache
+.codegraph/
